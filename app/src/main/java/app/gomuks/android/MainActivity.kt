@@ -161,8 +161,15 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        
+        //enable Edge to Edge rendering
         enableEdgeToEdge()
+
+        // Hide bars
+        val windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        
         initSharedPref()
         createNotificationChannels(this)
         view = GeckoView(this)
