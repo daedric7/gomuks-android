@@ -11,18 +11,30 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.gomuks.android"
+        applicationId = "pt.aguiarvieira.gomuks"
         minSdk = 33
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("releaseSigning") {
+            keyAlias = "habitica"         // Alias of the key in the keystore
+            keyPassword = "12345678"   // Password for the key
+            storeFile = file("./gomuks.keystore")  // Keystore file path
+            storePassword = "12345678"  // Keystore password
+        }
+    } 
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("releaseSigning")
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -39,9 +51,18 @@ android {
     buildFeatures {
         compose = true
     }
+    splits {
+        abi {
+            isEnable = true // Corrected: 'isEnable' instead of 'enable'
+            reset()
+            include("arm64-v8a", "armeabi-v7a") // Only include needed ABIs
+            isUniversalApk = false // Corrected: 'isUniversalApk' instead of 'universalApk'
+        }
+    }
 }
 
 dependencies {
+    val activity_version = "1.10.1"
     implementation(libs.geckoview.beta)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -60,4 +81,14 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("androidx.fragment:fragment-ktx:1.6.2") // Use the latest version
+    implementation("org.snakeyaml:snakeyaml-engine:2.7") // Use latest version
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core:1.8.0") // Add the core library for NotificationCompat
+    implementation("androidx.activity:activity-ktx:$activity_version") //Edge to edge
+}
+
+configurations.all {
+    exclude(group = "org.yaml", module = "snakeyaml")
 }
