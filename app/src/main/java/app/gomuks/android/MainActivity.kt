@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         initSharedPref()
         createNotificationChannels(this)
         view = GeckoView(this)
