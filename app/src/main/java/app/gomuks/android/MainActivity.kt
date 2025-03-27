@@ -178,6 +178,22 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
+        // Simple inset handling that only adjusts for IME
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val statusBarHeight = insets.systemWindowInsetTop
+            
+            if (imeHeight > 0) {
+                v.setPadding(0, statusBarHeight, 0, imeHeight)
+            } else {
+                v.setPadding(0, statusBarHeight, 0, 0)
+            }
+
+                   
+            // Don't consume the insets
+            insets
+        }
+
         File(cacheDir, "upload").mkdirs()
 
         session.progressDelegate = object : ProgressDelegate {
