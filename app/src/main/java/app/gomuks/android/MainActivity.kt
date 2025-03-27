@@ -53,7 +53,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
