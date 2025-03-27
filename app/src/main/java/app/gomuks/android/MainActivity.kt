@@ -68,8 +68,7 @@ import java.util.UUID
 import android.graphics.Rect
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.Interpolator
-import com.google.android.material.animation.FastOutSlowInInterpolator
-
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 
 class MainActivity : ComponentActivity() {
     companion object {
