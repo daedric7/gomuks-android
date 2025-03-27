@@ -193,21 +193,27 @@ class MainActivity : ComponentActivity() {
             val keyboardHeight = imeInsets.bottom
             
             if (keyboardHeight > 0) {
-                // Create a smooth interpolator that matches keyboard animation
-                val interpolator = PathInterpolatorCompat.create(0.2f, 1f, 0.2f, 1f)
-                
-                v.animate()
-                    .translationY(-keyboardHeight.toFloat())
-                    .setDuration(250) // Match typical keyboard animation duration
-                    .setInterpolator(interpolator)
-                    .start()
+                // Adjust bottom padding to make room for keyboard
+                v.setPadding(
+                    v.paddingLeft, 
+                    v.paddingTop, 
+                    v.paddingRight, 
+                    keyboardHeight
+                )
             } else {
-                // Reset view position when keyboard closes
-                v.animate()
-                    .translationY(0f)
-                    .setDuration(250)
-                    .start()
+                // Reset padding when keyboard is dismissed
+                v.setPadding(
+                    v.paddingLeft, 
+                    v.paddingTop, 
+                    v.paddingRight, 
+                    0
+                )
             }
+            
+            // Smooth out the padding change
+            v.animate()
+                .setDuration(250)
+                .start()
             
             // Don't consume the insets
             insets
