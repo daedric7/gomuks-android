@@ -146,38 +146,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    fun setupKeyboardHandling(geckoView: View) {
-        ViewCompat.setOnApplyWindowInsetsListener(geckoView) { view, windowInsets ->
-            val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
-            val systemBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            
-            // Adjust the bottom padding to make room for the keyboard
-            view.updatePadding(
-                top = systemBarInsets.top,
-                bottom = imeInsets.bottom
-            )
-            
-            // Ensure the view doesn't get covered by the keyboard
-            view.translationY = -imeInsets.bottom.toFloat()
-            
-            WindowInsetsCompat.CONSUMED
-        }
-    }
-    
-    // Optional: If you want to adjust the entire layout
-    fun setupRootViewKeyboardHandling(rootView: View) {
-        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
-            val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
-            val systemBarInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            
-            view.updatePadding(
-                top = systemBarInsets.top,
-                bottom = imeInsets.bottom
-            )
-            
-            windowInsets
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -211,8 +179,28 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
-        // Reize if keyb open
-        setupKeyboardHandling(geckoView)
+        // Smoother keyboard interaction with translation
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            val translationY = if (imeInsets.bottom > 0) {
+                // Smoothly move the view up by the keyboard height
+                -imeInsets.bottom.toFloat()
+            } else {
+                0f
+            }
+            
+            // Animate the translation for a smoother effect
+            v.animate()
+                .translationY(translationY)
+                .setDuration(200) // Adjust duration as needed
+                .setInterpolator(FastOutSlowInInterpolator())
+                .start()
+            
+            // Don't consume the insets
+            insets
+        }
 
         File(cacheDir, "upload").mkdirs()
 
