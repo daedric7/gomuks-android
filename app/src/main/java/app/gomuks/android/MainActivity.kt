@@ -178,18 +178,25 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
-        // Simple inset handling that only adjusts for IME
+        // Smoother keyboard interaction with translation
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val statusBarHeight = insets.systemWindowInsetTop
+            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             
-            if (imeHeight > 0) {
-                v.setPadding(0, statusBarHeight, 0, imeHeight)
+            val translationY = if (imeInsets.bottom > 0) {
+                // Smoothly move the view up by the keyboard height
+                -imeInsets.bottom.toFloat()
             } else {
-                v.setPadding(0, statusBarHeight, 0, 0)
+                0f
             }
-
-                   
+            
+            // Animate the translation for a smoother effect
+            v.animate()
+                .translationY(translationY)
+                .setDuration(200) // Adjust duration as needed
+                .setInterpolator(FastOutSlowInInterpolator())
+                .start()
+            
             // Don't consume the insets
             insets
         }
