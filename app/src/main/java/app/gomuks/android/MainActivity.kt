@@ -183,24 +183,17 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
-        // Smoother keyboard interaction with translation
-        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             
-            val translationY = if (imeInsets.bottom > 0) {
-                // Smoothly move the view up by the keyboard height
-                -imeInsets.bottom.toFloat()
+            if (imeInsets.bottom > 0) {
+                // Adjust view to make room for keyboard
+                v.setPadding(0, 0, 0, imeInsets.bottom)
             } else {
-                0f
+                // Reset padding when keyboard is dismissed
+                v.setPadding(0, 0, 0, 0)
             }
-            
-            // Animate the translation for a smoother effect
-            v.animate()
-                .translationY(translationY)
-                .setDuration(200) // Adjust duration as needed
-                .setInterpolator(FastOutSlowInInterpolator())
-                .start()
             
             // Don't consume the insets
             insets
