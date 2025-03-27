@@ -87,7 +87,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.core:core:1.8.0") // Add the core library for NotificationCompat
     implementation("androidx.activity:activity-ktx:$activity_version") //Edge to edge
-    implementation("com.google.android.material:material:1.12.0") // Latest stable version as of March 2024
+    implementation("androidx.interpolator:interpolator:1.0.0")
 }
 
 configurations.all {
