@@ -68,6 +68,7 @@ import android.graphics.Rect
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.Interpolator
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.core.view.animation.PathInterpolatorCompat
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -183,16 +184,29 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
-         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+        
+        // Adjust view when keyboard opens. 
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             
-            if (imeInsets.bottom > 0) {
-                // Adjust view to make room for keyboard
-                v.setPadding(0, 0, 0, imeInsets.bottom)
+            val keyboardHeight = imeInsets.bottom
+            
+            if (keyboardHeight > 0) {
+                // Create a smooth interpolator that matches keyboard animation
+                val interpolator = PathInterpolatorCompat.create(0.2f, 1f, 0.2f, 1f)
+                
+                v.animate()
+                    .translationY(-keyboardHeight.toFloat())
+                    .setDuration(250) // Match typical keyboard animation duration
+                    .setInterpolator(interpolator)
+                    .start()
             } else {
-                // Reset padding when keyboard is dismissed
-                v.setPadding(0, 0, 0, 0)
+                // Reset view position when keyboard closes
+                v.animate()
+                    .translationY(0f)
+                    .setDuration(250)
+                    .start()
             }
             
             // Don't consume the insets
