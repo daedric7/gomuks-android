@@ -171,6 +171,9 @@ class MainActivity : ComponentActivity() {
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
+        // Set the background color of the entire view to black, to prevent white space
+        window.decorView.setBackgroundColor(resources.getColor(android.R.color.black))
+
         
         initSharedPref()
         createNotificationChannels(this)
