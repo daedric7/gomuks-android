@@ -66,7 +66,8 @@ import java.util.UUID
 
 import android.graphics.Rect
 import android.view.inputmethod.InputMethodManager
-
+import android.view.animation.Interpolator
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -146,6 +147,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -169,6 +171,9 @@ class MainActivity : ComponentActivity() {
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
+        // Set the background color of the entire view to black, to prevent white space
+        window.decorView.setBackgroundColor(resources.getColor(android.R.color.black))
+
         
         initSharedPref()
         createNotificationChannels(this)
@@ -177,6 +182,29 @@ class MainActivity : ComponentActivity() {
         val runtime = getRuntime(this)
         session.open(runtime)
         view.setSession(session)
+
+        // Smoother keyboard interaction with translation
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            val translationY = if (imeInsets.bottom > 0) {
+                // Smoothly move the view up by the keyboard height
+                -imeInsets.bottom.toFloat()
+            } else {
+                0f
+            }
+            
+            // Animate the translation for a smoother effect
+            v.animate()
+                .translationY(translationY)
+                .setDuration(200) // Adjust duration as needed
+                .setInterpolator(FastOutSlowInInterpolator())
+                .start()
+            
+            // Don't consume the insets
+            insets
+        }
 
         File(cacheDir, "upload").mkdirs()
 
