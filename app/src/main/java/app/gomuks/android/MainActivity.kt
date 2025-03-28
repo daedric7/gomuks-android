@@ -68,6 +68,7 @@ import android.graphics.Rect
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.Interpolator
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.core.view.animation.PathInterpolatorCompat
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -183,23 +184,35 @@ class MainActivity : ComponentActivity() {
         session.open(runtime)
         view.setSession(session)
 
-        // Smoother keyboard interaction with translation
+        
+        // Adjust view when keyboard opens. 
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
             val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
             val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             
-            val translationY = if (imeInsets.bottom > 0) {
-                // Smoothly move the view up by the keyboard height
-                -imeInsets.bottom.toFloat()
+            val keyboardHeight = imeInsets.bottom
+            
+            if (keyboardHeight > 0) {
+                // Adjust bottom padding to make room for keyboard
+                v.setPadding(
+                    v.paddingLeft, 
+                    v.paddingTop, 
+                    v.paddingRight, 
+                    keyboardHeight
+                )
             } else {
-                0f
+                // Reset padding when keyboard is dismissed
+                v.setPadding(
+                    v.paddingLeft, 
+                    v.paddingTop, 
+                    v.paddingRight, 
+                    0
+                )
             }
             
-            // Animate the translation for a smoother effect
+            // Smooth out the padding change
             v.animate()
-                .translationY(translationY)
-                .setDuration(200) // Adjust duration as needed
-                .setInterpolator(FastOutSlowInInterpolator())
+                .setDuration(250)
                 .start()
             
             // Don't consume the insets
