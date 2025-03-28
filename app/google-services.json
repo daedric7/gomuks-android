@@ -140,6 +140,25 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:532032404365:android:d692714a56830d89ec9bc4",
+        "android_client_info": {
+          "package_name": "pt.aguiarvieira.gomuks.av"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAGwca7l1BN9uatWbC3TsYrPphjdVb4BA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:532032404365:android:6232f6751fea0eeaec9bc4",
         "android_client_info": {
           "package_name": "pt.aguiarvieira.ntfy"
