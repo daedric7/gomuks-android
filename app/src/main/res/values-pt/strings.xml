@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Gomuks Android</string>
+    <string name="app_name">Gomuks Android AV</string>
 
     <string name="server_url">URL do Servidor</string>
     <string name="connect">Ligar</string>
