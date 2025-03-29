@@ -104,6 +104,7 @@ class MessagingService : FirebaseMessagingService() {
             Intent(this, MainActivity::class.java).apply {
                 action = Intent.ACTION_VIEW
                 val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+                setData(deepLinkUri)  // Make sure to set the URI here
             },
             PendingIntent.FLAG_MUTABLE
         )
@@ -112,7 +113,8 @@ class MessagingService : FirebaseMessagingService() {
         createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
         val chatIntent = Intent(this@MessagingService, MainActivity::class.java).apply {
-            putExtra("ROOM_ID", data.roomID)  // Or any other extra you need to pass
+            putExtra("ROOM_ID", data.roomID)// Or any other extra you need to pass
+            putExtra("event_id", data.eventID)
         }
 
         //val pendingIntent = PendingIntent.getActivity(
