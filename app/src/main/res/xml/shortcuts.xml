@@ -4,7 +4,7 @@
     <shortcut
         android:shortcutId="default_chat"
         android:enabled="true"
-        android:icon="@drawable/ic_chat"
+        android:icon="@android:drawable/ic_menu_send"
         android:shortcutShortLabel="@string/shortcut_chat"
         android:shortcutLongLabel="@string/shortcut_chat_long"
         android:intent="android.intent.action.VIEW"
