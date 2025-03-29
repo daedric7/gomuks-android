@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
+import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -114,17 +115,17 @@ class MessagingService : FirebaseMessagingService() {
             putExtra("ROOM_ID", data.roomID)  // Or any other extra you need to pass
         }
 
-        val pendingIntent = PendingIntent.getActivity(
-            this@MessagingService,
-            0,
-            chatIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        //val pendingIntent = PendingIntent.getActivity(
+        //    this@MessagingService,
+        //    0,
+        //    chatIntent,
+        //    PendingIntent.FLAG_IMMUTABLE
+        //)
         
-        val bubbleMetadata = Notification.BubbleMetadata.Builder()
+        val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
             .setDesiredHeight(600)
-            .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))  // IconCompat
-            .setIntent(pendingIntent)  // PendingIntent
+            .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
+            .setIntent(pendingIntent)
             .build()
     
         val builder = NotificationCompat.Builder(this, channelID)
