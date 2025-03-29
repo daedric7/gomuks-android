@@ -101,7 +101,7 @@ class MessagingService : FirebaseMessagingService() {
             0,
             Intent(this, MainActivity::class.java).apply {
                 action = Intent.ACTION_VIEW
-                data = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+                val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
             },
             PendingIntent.FLAG_IMMUTABLE
         )
