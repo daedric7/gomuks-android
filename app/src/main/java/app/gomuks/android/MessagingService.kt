@@ -108,7 +108,7 @@ class MessagingService : FirebaseMessagingService() {
                 setData(deepLinkUri)  // Make sure to set the URI here
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK // Add this flag
             },
-            PendingIntent.FLAG_MUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
     
         // Create or update the conversation shortcut
