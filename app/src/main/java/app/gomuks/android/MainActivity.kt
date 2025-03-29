@@ -287,6 +287,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         Log.i(LOGTAG, "onStart")
+        Log.i(LOGTAG, "Session active: ${session.isActive}")  // Log session state
         session.setActive(true)
     }
 
@@ -298,12 +299,14 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Log.i(LOGTAG, "onResume")
+        Log.i(LOGTAG, "Session active: ${session.isActive}")  // Log session state
     }
 
     override fun onStop() {
         super.onStop()
         Log.i(LOGTAG, "onStop")
         session.setActive(false)
+        Log.i(LOGTAG, "Session active: ${session.isActive}")  // Log session state
     }
 
     override fun onRestart() {
