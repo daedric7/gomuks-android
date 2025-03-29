@@ -106,6 +106,7 @@ class MessagingService : FirebaseMessagingService() {
                 val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
                 Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
                 setData(deepLinkUri)  // Make sure to set the URI here
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK // Add this flag
             },
             PendingIntent.FLAG_MUTABLE
         )
