@@ -143,7 +143,7 @@ class MessagingService : FirebaseMessagingService() {
             .setShortLabel(roomName)
             .setLongLived(true)
             .setIntent(chatIntent)
-            .setPerson(sender) // Assign sender's identity
+            .setPerson(sender.toAndroidPerson()) // Convert to android.app.Person
             .setIcon(Icon.createWithResource(context, R.drawable.ic_chat)) // Optional
             .build()
     
