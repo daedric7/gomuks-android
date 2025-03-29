@@ -8,7 +8,7 @@
         android:shortcutShortLabel="@string/shortcut_chat"
         android:shortcutLongLabel="@string/shortcut_chat_long"
         android:targetPackage="pt.aguiarvieira.gomuks.av"
-        android:targetClass="app.gomuks.android.MainActivity"
+        android:targetClass="app.gomuks.android.MainActivity"/>
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="pt.aguiarvieira.gomuks.av"
