@@ -47,6 +47,9 @@
         <meta-data
             android:name="android.app.backgroundActivityLaunchPermission"
             android:value="true" />
+        <meta-data
+            android:name="android.allows_bubbles"
+            android:value="true" />
         <service
             android:name=".MessagingService"
             android:enabled="true"
