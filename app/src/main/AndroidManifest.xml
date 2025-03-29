@@ -40,7 +40,9 @@
         android:theme="@style/Theme.Gomuks">
         <meta-data
             android:name="android.app.shortcuts"
-            android:resource="@xml/shortcuts" />
+            android:resource="@xml/shortcuts"
+            android:name="android.app.backgroundActivityLaunchPermission"
+            android:value="true" />
         <service
             android:name=".MessagingService"
             android:enabled="true"
