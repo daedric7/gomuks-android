@@ -38,9 +38,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Gomuks">
+        <!-- Define the app's shortcuts -->
         <meta-data
             android:name="android.app.shortcuts"
-            android:resource="@xml/shortcuts"
+            android:resource="@xml/shortcuts" />
+        
+        <!-- Define the background activity launch permission -->
+        <meta-data
             android:name="android.app.backgroundActivityLaunchPermission"
             android:value="true" />
         <service
