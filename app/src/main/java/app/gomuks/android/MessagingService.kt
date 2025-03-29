@@ -110,13 +110,13 @@ class MessagingService : FirebaseMessagingService() {
         // Create or update the conversation shortcut
         createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
-        val chatIntent = Intent(this@MessagingService, ChatActivity::class.java).apply {
+        val chatIntent = Intent(this@MessagingService, MainActivity::class.java).apply {
             putExtra("ROOM_ID", data.roomID)  // Or any other extra you need to pass
         }
 
-        val bubbleMetadata = Notification.BubbleMetadata.Builder()
+        val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
             .setDesiredHeight(600)  // Optional: Customize the size of the bubble
-            .setIcon(Icon.createWithResource(this@MessagingService, R.drawable.ic_chat)) // Set the bubble icon
+            .setIcon(Icon.createWithResource(this@MessagingService, R.drawable.ic_chat))  // Set the bubble icon
             .setIntent(chatIntent)  // Define the intent for the bubble action
             .build()
     
