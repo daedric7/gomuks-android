@@ -126,15 +126,15 @@ class MessagingService : FirebaseMessagingService() {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             //.setShortcutId(data.roomID) // Associate with a conversation
     
-        with(NotificationManagerCompat.from(this)) {
+        with(NotificationManagerCompat.from(context)) {
             if (ActivityCompat.checkSelfPermission(
-                    this@MessagingService,
+                    context,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 return
             }
-            notify(notifID, builder.build())
+            notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
         }
     }
     
