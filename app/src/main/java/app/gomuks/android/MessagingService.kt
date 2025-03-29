@@ -117,7 +117,7 @@ class MessagingService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setConversationShortcutId(data.roomID) // Mark it as a conversation
+            .setShortcutId(data.roomID) // Associate with a conversation
     
         with(NotificationManagerCompat.from(this)) {
             if (ActivityCompat.checkSelfPermission(
