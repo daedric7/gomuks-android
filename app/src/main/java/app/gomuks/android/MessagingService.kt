@@ -106,53 +106,63 @@ class MessagingService : FirebaseMessagingService() {
                 val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
                 Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
                 setData(deepLinkUri)  // Make sure to set the URI here
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK // Add this flag
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP // Intent.FLAG_ACTIVITY_NEW_TASK // Add this flag
             },
-            PendingIntent.FLAG_MUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT //PendingIntent.FLAG_MUTABLE
         )
     
-        // Create or update the conversation shortcut
-        createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
-
-        val chatIntent = Intent(this@MessagingService, MainActivity::class.java).apply {
-            putExtra("ROOM_ID", data.roomID)// Or any other extra you need to pass
-            putExtra("event_id", data.eventID)
-        }
-
-        //val pendingIntent = PendingIntent.getActivity(
-        //    this@MessagingService,
-        //    0,
-        //    chatIntent,
-        //    PendingIntent.FLAG_IMMUTABLE
-        //)
-        
-        val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
-            .setDesiredHeight(600)
-            .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
-            .setIntent(pendingIntent)
-            .build()
+    // Create or update the conversation shortcut
+    createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
     
-        val builder = NotificationCompat.Builder(this, channelID)
-            .setSmallIcon(R.drawable.matrix)
-            .setStyle(messagingStyle)
-            .setWhen(data.timestamp)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
-            .setShortcutId(data.roomID)  // Associate the notification with the conversation
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            //.setShortcutId(data.roomID) // Associate with a conversation
+    // Create a proper deep link intent
+    val chatIntent = Intent(this@MessagingService, MainActivity::class.java).apply {
+        action = Intent.ACTION_VIEW
+        val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+        setData(deepLinkUri)
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra("ROOM_ID", data.roomID)
+        putExtra("event_id", data.eventID)
+    }
     
-        with(NotificationManagerCompat.from(this@MessagingService)) {
-            if (ActivityCompat.checkSelfPermission(
-                    this@MessagingService,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                return
-            }
-            notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
+    // Create the PendingIntent with proper flags for Android 14
+    val pendingIntent = PendingIntent.getActivity(
+        this@MessagingService,
+        data.roomID.hashCode(), // Use a unique request code based on the room
+        chatIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+    )
+    
+    // Create bubble metadata with the same intent
+    val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
+        .setDesiredHeight(600)
+        .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
+        .setIntent(pendingIntent)
+        .setAutoExpandBubble(true) // Add this to auto-expand important bubbles
+        .setSuppressNotification(false) // Make sure notification is shown
+        .build()
+    
+    val builder = NotificationCompat.Builder(this, channelID)
+        .setSmallIcon(R.drawable.matrix)
+        .setStyle(messagingStyle)
+        .setWhen(data.timestamp)
+        .setAutoCancel(true)
+        .setContentIntent(pendingIntent)
+        .setBubbleMetadata(bubbleMetadata)
+        .setShortcutId(data.roomID)
+        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+        // For Android 14, ensure this notification can launch activities
+        .setFlag(Notification.FLAG_FOREGROUND_SERVICE, true)
+        .setAllowSystemGeneratedContextualActions(true)
+    
+    with(NotificationManagerCompat.from(this@MessagingService)) {
+        if (ActivityCompat.checkSelfPermission(
+                this@MessagingService,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
         }
+        notify(notifID.hashCode(), builder.build())
     }
     
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
