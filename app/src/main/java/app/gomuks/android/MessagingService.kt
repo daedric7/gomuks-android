@@ -24,6 +24,7 @@ import kotlinx.serialization.json.Json
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
+import android.app.Notification
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -109,9 +110,13 @@ class MessagingService : FirebaseMessagingService() {
         // Create or update the conversation shortcut
         createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
+        val chatIntent = Intent(this@MessagingService, ChatActivity::class.java).apply {
+            putExtra("ROOM_ID", data.roomID)  // Or any other extra you need to pass
+        }
+
         val bubbleMetadata = Notification.BubbleMetadata.Builder()
             .setDesiredHeight(600)  // Optional: Customize the size of the bubble
-            .setIcon(Icon.createWithResource(context, R.drawable.ic_chat))  // Set the bubble icon
+            .setIcon(Icon.createWithResource(this@MessagingService, R.drawable.ic_chat)) // Set the bubble icon
             .setIntent(chatIntent)  // Define the intent for the bubble action
             .build()
     
@@ -126,9 +131,9 @@ class MessagingService : FirebaseMessagingService() {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             //.setShortcutId(data.roomID) // Associate with a conversation
     
-        with(NotificationManagerCompat.from(context)) {
+        with(NotificationManagerCompat.from(this@MessagingService)) {
             if (ActivityCompat.checkSelfPermission(
-                    context,
+                    this@MessagingService,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
