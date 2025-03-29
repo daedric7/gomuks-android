@@ -108,6 +108,12 @@ class MessagingService : FirebaseMessagingService() {
     
         // Create or update the conversation shortcut
         createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
+
+        val bubbleMetadata = Notification.BubbleMetadata.Builder()
+            .setDesiredHeight(600)  // Optional: Customize the size of the bubble
+            .setIcon(Icon.createWithResource(context, R.drawable.ic_chat))  // Set the bubble icon
+            .setIntent(chatIntent)  // Define the intent for the bubble action
+            .build()
     
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
@@ -115,9 +121,10 @@ class MessagingService : FirebaseMessagingService() {
             .setWhen(data.timestamp)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setShortcutId(data.roomID) // Associate with a conversation
+            //.setShortcutId(data.roomID) // Associate with a conversation
     
         with(NotificationManagerCompat.from(this)) {
             if (ActivityCompat.checkSelfPermission(
