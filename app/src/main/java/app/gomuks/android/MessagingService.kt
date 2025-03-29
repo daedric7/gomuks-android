@@ -114,10 +114,17 @@ class MessagingService : FirebaseMessagingService() {
             putExtra("ROOM_ID", data.roomID)  // Or any other extra you need to pass
         }
 
-        val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
-            .setDesiredHeight(600)  // Optional: Customize the size of the bubble
-            .setIcon(Icon.createWithResource(this@MessagingService, R.drawable.ic_chat))  // Set the bubble icon
-            .setIntent(chatIntent)  // Define the intent for the bubble action
+        val pendingIntent = PendingIntent.getActivity(
+            this@MessagingService,
+            0,
+            chatIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val bubbleMetadata = Notification.BubbleMetadata.Builder()
+            .setDesiredHeight(600)
+            .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))  // IconCompat
+            .setIntent(pendingIntent)  // PendingIntent
             .build()
     
         val builder = NotificationCompat.Builder(this, channelID)
