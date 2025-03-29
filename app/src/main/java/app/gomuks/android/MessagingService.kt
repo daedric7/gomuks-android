@@ -105,7 +105,7 @@ class MessagingService : FirebaseMessagingService() {
                 action = Intent.ACTION_VIEW
                 val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
             },
-            PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_MUTABLE
         )
     
         // Create or update the conversation shortcut
