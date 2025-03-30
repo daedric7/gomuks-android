@@ -12,6 +12,7 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
@@ -141,7 +142,7 @@ class MessagingService : FirebaseMessagingService() {
 
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
                 NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
-            } ?: NotificationCompat.MessagingStyle(pushUserToPerson(data.self) { person -> person }))
+            } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
                 .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
                 .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
 
@@ -168,7 +169,7 @@ class MessagingService : FirebaseMessagingService() {
             createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
             // Retrieve the bitmap for the sender's icon
-            val senderIconBitmap = (sender.icon?.toIcon(applicationContext)?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+            val senderIconBitmap = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
             Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
 
             val builder = NotificationCompat.Builder(this, channelID)
@@ -177,7 +178,6 @@ class MessagingService : FirebaseMessagingService() {
                 .setWhen(data.timestamp)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
-                //.setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
                 .setShortcutId(data.roomID)  // Associate the notification with the conversation
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setLargeIcon(senderIconBitmap)  // Set the large icon
@@ -190,7 +190,7 @@ class MessagingService : FirebaseMessagingService() {
                 ) {
                     return@with
                 }
-                notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
+                notify(notifID.hashCode(), builder.build())
             }
         }
     }
