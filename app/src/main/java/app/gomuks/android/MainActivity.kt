@@ -62,6 +62,8 @@ import org.mozilla.geckoview.GeckoSession.ProgressDelegate
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.WebExtension
 import java.io.File
+import java.net.CookieManager
+import java.net.URI
 import java.util.UUID
 
 import android.graphics.Rect
@@ -159,8 +161,9 @@ class MainActivity : ComponentActivity() {
     private fun retrieveGomuksAuthCookie() {
         val serverUrl = sharedPref.getString(getString(R.string.server_url_key), null)
         if (serverUrl != null) {
-            val cookies = session.cookieManager.getCookie(serverUrl)
-            val gomuksAuthCookie = cookies?.split(";")?.find { it.trim().startsWith("gomuks_auth=") }?.substringAfter("=")
+            val cookieManager = CookieManager.getDefault().cookieStore
+            val cookies = cookieManager.get(URI.create(serverUrl))
+            val gomuksAuthCookie = cookies?.find { it.name == "gomuks_auth" }?.value
             if (gomuksAuthCookie != null) {
                 storeGomuksAuthCookie(gomuksAuthCookie)
             }
