@@ -165,6 +165,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun logSharedPreferences() {
+        val allEntries = sharedPref.all
+        for ((key, value) in allEntries) {
+            Log.d(LOGTAG, "SharedPreferences: $key = $value")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
