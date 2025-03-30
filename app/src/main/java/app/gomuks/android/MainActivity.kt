@@ -1,5 +1,6 @@
 package app.gomuks.android
 
+import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -18,7 +19,6 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.EditText
-import android.Manifest
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -148,6 +148,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun storeGomuksAuthCookie(cookie: String) {
+        with(sharedPref.edit()) {
+            putString("gomuks_auth_cookie", cookie)
+            apply()
+        }
+        logSharedPreferences()
+    }
+
+    private fun retrieveGomuksAuthCookie() {
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        val cookies = cookieManager.getCookie("https://webmuks.daedric.net")
+        val gomuksAuthCookie = cookies?.split(";")?.find { it.trim().startsWith("gomuks_auth=") }?.substringAfter("=")
+        if (gomuksAuthCookie != null) {
+            storeGomuksAuthCookie(gomuksAuthCookie)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -419,6 +435,7 @@ class MainActivity : ComponentActivity() {
             Button(onClick = {
                 setCredentials(serverURL, username, password)
                 loadWeb()
+                retrieveGomuksAuthCookie() // Call this function after login to store the cookie
             }) {
                 Text(getString(R.string.connect))
             }
