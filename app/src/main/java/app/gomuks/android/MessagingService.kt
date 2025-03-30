@@ -77,6 +77,8 @@ class MessagingService : FirebaseMessagingService() {
 
     private fun pushUserToPerson(data: PushUser): Person {
         // TODO include avatar
+        // Log the entire content of data
+        Log.d(LOGTAG, "PushUser data: $data")
         return Person.Builder()
             .setKey(data.id)
             .setName(data.name)
