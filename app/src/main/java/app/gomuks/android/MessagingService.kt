@@ -50,6 +50,11 @@ class MessagingService : FirebaseMessagingService() {
         private const val LOGTAG = "Gomuks/MessagingService"
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        logSharedPreferences()
+    }
+
     override fun onNewToken(token: String) {
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
@@ -63,6 +68,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        logSharedPreferences()
         val pushEncKey = getExistingPushEncryptionKey(this)
         if (pushEncKey == null) {
             Log.e(LOGTAG, "No push encryption key found to handle $message")
