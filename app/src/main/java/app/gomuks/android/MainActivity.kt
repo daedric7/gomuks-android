@@ -62,7 +62,7 @@ import org.mozilla.geckoview.GeckoSession.ProgressDelegate
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.WebExtension
-import org.mozilla.geckoview.GeckoSession.WebExtensionController.MessageDelegate
+
 import java.io.File
 import java.util.UUID
 
@@ -185,19 +185,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchCookies(extension: WebExtension) {
-        val port = extension.connect("gomuksAndroid")
-        port.postMessage(mapOf("action" to "getCookies"))
-        port.setMessageListener { message ->
-            if (message is Map<*, *>) {
-                val cookies = message["cookies"] as? List<Map<String, Any>>
-                cookies?.forEach { cookie ->
-                    Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
-                }
-            }
-        }
-    }
-
     private fun isSessionActive(sessionState: GeckoSession.SessionState?): Boolean {
         val stateJson = sessionState?.toString() ?: return false
         val jsonObject = JSONObject(stateJson)
@@ -305,29 +292,6 @@ class MainActivity : ComponentActivity() {
                             messageDelegate,
                             "gomuksAndroid"
                         )
-    
-                        // Inject a script to retrieve cookies
-                        val script = """
-                            browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-                                if (message.action === 'getCookies') {
-                                    browser.cookies.getAll({}).then(cookies => {
-                                        sendResponse({cookies: cookies});
-                                    });
-                                    return true; // Will respond asynchronously.
-                                }
-                            });
-                        """.trimIndent()
-    
-                        extension.setMessageDelegate(object : WebExtension.MessageDelegate {
-                            override fun onMessage(port: WebExtension.Port, message: Any, sender: Any) {
-                                if (message is Map<*, *> && message["action"] == "getCookies") {
-                                    port.postMessage(mapOf("action" to "getCookies"))
-                                }
-                            }
-                        })
-    
-                        sessWebExtController.runScript(extension, script, "text/javascript")
-                        fetchCookies(extension)
                     } else {
                         Log.e(LOGTAG, "Installed extension is null?")
                     }
