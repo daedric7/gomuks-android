@@ -28,11 +28,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 // For conversations API
 import android.content.pm.ShortcutInfo
@@ -44,8 +39,6 @@ import android.app.Service
 import android.app.NotificationChannel
 import android.os.IBinder
 import android.graphics.drawable.Icon
-import com.bumptech.glide.Glide
-
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -97,12 +90,11 @@ class MessagingService : FirebaseMessagingService() {
             }
         }
         data.messages?.forEach {
-            showMessageNotification(it)
+            showMessageNotification(it, data.imageAuth)
         }
     }
 
-
-    private fun pushUserToPerson(data: PushUser, callback: (Person) -> Unit) {
+    private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
@@ -133,49 +125,40 @@ class MessagingService : FirebaseMessagingService() {
             val glideUrl = GlideUrl(
                 avatarURL,
                 LazyHeaders.Builder()
-                    .addHeader("Cookie", "gomuks_auth=$cookie")
+                    .addHeader("Sec-Fetch-Site", "cross-site")
+                    .addHeader("Sec-Fetch-Mode", "no-cors")
+                    .addHeader("Sec-Fetch-Dest", "image")
                     .build()
             )
 
-            if (!avatarURL.isNullOrEmpty()) {
-                val glideUrl = GlideUrl(
-                    avatarURL,
-                    LazyHeaders.Builder()
-                        .addHeader("Sec-Fetch-Site", "cross-site")
-                        .addHeader("Sec-Fetch-Mode", "no-cors")
-                        .addHeader("Sec-Fetch-Dest", "image")
-                        .build()
-                )
-        
-                    Glide.with(context)
-                        .asBitmap()
-                        .load(glideUrl)
-                        .error(R.drawable.ic_chat) // Add an error placeholder
-                        .into(object : CustomTarget<Bitmap>() {
-                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                                personBuilder.setIcon(IconCompat.createWithBitmap(resource))
-                                callback(personBuilder.build())
-                            }
-            
-                            override fun onLoadCleared(placeholder: Drawable?) {
-                                // Handle cleanup if necessary
-                                callback(personBuilder.build())
-                            }
-            
-                            override fun onLoadFailed(errorDrawable: Drawable?) {
-                                super.onLoadFailed(errorDrawable)
-                                Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
-                                callback(personBuilder.build())
-                            }
-                        })
-                } else {
-                    callback(personBuilder.build())
-                }
-            }
+            Glide.with(context)
+                .asBitmap()
+                .load(glideUrl)
+                .error(R.drawable.ic_chat) // Add an error placeholder
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                        callback(personBuilder.build())
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
+                        callback(personBuilder.build())
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        super.onLoadFailed(errorDrawable)
+                        Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
+                        callback(personBuilder.build())
+                    }
+                })
+        } else {
+            callback(personBuilder.build())
+        }
     }
 
-    private fun showMessageNotification(data: PushMessage) {
-        pushUserToPerson(data.sender) { sender ->
+    private fun showMessageNotification(data: PushMessage, imageAuth: String) {
+        pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
 
