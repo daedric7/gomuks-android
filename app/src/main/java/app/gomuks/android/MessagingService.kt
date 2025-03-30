@@ -120,11 +120,11 @@ class MessagingService : FirebaseMessagingService() {
         }
 
        
-        val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
-            .setDesiredHeight(600)
-            .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
-            .setIntent(pendingIntent)
-            .build()
+        //val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
+        //    .setDesiredHeight(600)
+        //    .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
+        //    .setIntent(pendingIntent)
+        //    .build()
     
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
@@ -132,7 +132,7 @@ class MessagingService : FirebaseMessagingService() {
             .setWhen(data.timestamp)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
+            //.setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
     
