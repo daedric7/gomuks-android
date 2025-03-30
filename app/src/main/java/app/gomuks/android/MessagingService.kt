@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
 import android.util.Log
@@ -15,8 +16,10 @@ import androidx.core.app.NotificationCompat.MessagingStyle
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -81,11 +84,11 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun pushUserToPerson(data: PushUser): Person {
+    private fun pushUserToPerson(data: PushUser, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
-    
+
         // Generate the full avatar URL
         val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
             if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
@@ -96,82 +99,100 @@ class MessagingService : FirebaseMessagingService() {
         } else {
             null
         }
-    
+
         // Log the entire content of data
         Log.d(LOGTAG, "PushUser data: $data")
         Log.d(LOGTAG, "Avatar URL: $avatarURL")
-    
+
         // Continue building the Person object
         val personBuilder = Person.Builder()
             .setKey(data.id)
             .setName(data.name)
             .setUri("matrix:u/${data.id.substring(1)}")
-    
-        // Check if the avatar URL is not null and add it to the Person.Builder
+
         if (!avatarURL.isNullOrEmpty()) {
-            personBuilder.setIcon(IconCompat.createWithContentUri(avatarURL))
+            Glide.with(this)
+                .asBitmap()
+                .load(avatarURL)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                        callback(personBuilder.build())
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
+                        callback(personBuilder.build())
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        super.onLoadFailed(errorDrawable)
+                        callback(personBuilder.build())
+                    }
+                })
+        } else {
+            callback(personBuilder.build())
         }
-    
-        return personBuilder.build()
     }
 
     private fun showMessageNotification(data: PushMessage) {
-        val sender = pushUserToPerson(data.sender)
-        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        val notifID = data.roomID.hashCode()
+        pushUserToPerson(data.sender) { sender ->
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val notifID = data.roomID.hashCode()
 
-        val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
-            MessagingStyle.extractMessagingStyleFromNotification(it.notification)
-        } ?: MessagingStyle(pushUserToPerson(data.self)))
-            .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
-            .addMessage(MessagingStyle.Message(data.text, data.timestamp, sender))
+            val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
+                MessagingStyle.extractMessagingStyleFromNotification(it.notification)
+            } ?: MessagingStyle(pushUserToPerson(data.self)))
+                .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
+                .addMessage(MessagingStyle.Message(data.text, data.timestamp, sender))
 
-        val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
+            val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
 
-        val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
-        Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
+            val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+            Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
 
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            notifID,
-            Intent(this, MainActivity::class.java).apply {
-                action = Intent.ACTION_VIEW
-                setData(deepLinkUri)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or 
-            PendingIntent.FLAG_MUTABLE
-        )
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                notifID,
+                Intent(this, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    setData(deepLinkUri)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or 
+                PendingIntent.FLAG_MUTABLE
+            )
 
-        // Create or update the conversation shortcut
-        createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
+            // Create or update the conversation shortcut
+            createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
-        // Retrieve the bitmap for the sender's icon
-        val senderIconBitmap = sender.icon?.loadDrawable(this)?.toBitmap()
-        Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
+            // Retrieve the bitmap for the sender's icon
+            val senderIconBitmap = (sender.icon?.toIcon(context)?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+            Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
 
-        val builder = NotificationCompat.Builder(this, channelID)
-            .setSmallIcon(R.drawable.matrix)
-            .setStyle(messagingStyle)
-            .setWhen(data.timestamp)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            //.setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
-            .setShortcutId(data.roomID)  // Associate the notification with the conversation
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setLargeIcon(senderIconBitmap)  // Set the large icon
+            val builder = NotificationCompat.Builder(this, channelID)
+                .setSmallIcon(R.drawable.matrix)
+                .setStyle(messagingStyle)
+                .setWhen(data.timestamp)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                //.setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
+                .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setLargeIcon(senderIconBitmap)  // Set the large icon
 
-        with(NotificationManagerCompat.from(this@MessagingService)) {
-            if (ActivityCompat.checkSelfPermission(
-                    this@MessagingService,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                return
+            with(NotificationManagerCompat.from(this@MessagingService)) {
+                if (ActivityCompat.checkSelfPermission(
+                        this@MessagingService,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return@with
+                }
+                notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
             }
-            notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
         }
     }
 
