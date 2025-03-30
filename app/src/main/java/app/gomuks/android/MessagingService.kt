@@ -17,6 +17,8 @@ import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.model.GlideUrl
+import com.bumptech.glide.load.model.LazyHeaders
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -156,30 +158,17 @@ class MessagingService : FirebaseMessagingService() {
         if (!avatarURL.isNullOrEmpty()) {
             val cookie = getGomuksAuthCookie()
             if (cookie != null) {
-                val okHttpClient = OkHttpClient.Builder()
-                    .cookieJar(object : CookieJar {
-                        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {}
-                        override fun loadForRequest(url: HttpUrl): List<Cookie> {
-                            return listOf(Cookie.Builder()
-                                .name("gomuks_auth")
-                                .value(cookie)
-                                .domain(url.host)
-                                .build())
-                        }
-                    })
-                    .build()
-
-                val requestBuilder = Request.Builder().url(avatarURL)
-                val request = requestBuilder.build()
-
-                val requestOptions = RequestOptions()
-                    .addHeader("Cookie", "gomuks_auth=$cookie")
-                    .error(R.drawable.ic_chat) // Add an error placeholder
+                val glideUrl = GlideUrl(
+                    avatarURL,
+                    LazyHeaders.Builder()
+                        .addHeader("Cookie", "gomuks_auth=$cookie")
+                        .build()
+                )
 
                 Glide.with(applicationContext)
                     .asBitmap()
-                    .apply(requestOptions)
-                    .load(request)
+                    .load(glideUrl)
+                    .error(R.drawable.ic_chat) // Add an error placeholder
                     .into(object : CustomTarget<Bitmap>() {
                         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                             personBuilder.setIcon(IconCompat.createWithBitmap(resource))
