@@ -165,20 +165,32 @@ class MessagingService : FirebaseMessagingService() {
     
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
-    
+
         val chatIntent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             data = "matrix:roomid/${roomID.substring(1)}".toUri()
         }
-    
-        val shortcut = ShortcutInfo.Builder(context, roomID)
+
+        // Retrieve the icon from the sender
+        val icon = sender.icon?.loadDrawable(context)?.let { drawable ->
+            Icon.createWithBitmap(drawable.toBitmap())
+        }
+
+        val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
             .setShortLabel(roomName)
             .setLongLived(true)
             .setIntent(chatIntent)
             .setPerson(sender.toAndroidPerson()) // Convert to android.app.Person
-            .setIcon(Icon.createWithResource(context, R.drawable.ic_chat)) // Optional
-            .build()
-    
+
+        // Set the icon if it is available
+        if (icon != null) {
+            shortcutBuilder.setIcon(icon)
+        } else {
+            shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
+        }
+
+        val shortcut = shortcutBuilder.build()
+
         shortcutManager.addDynamicShortcuts(listOf(shortcut))
     }
     
