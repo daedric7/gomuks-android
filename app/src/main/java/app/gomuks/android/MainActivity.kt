@@ -151,49 +151,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    //private fun storeGomuksAuthCookie(cookie: String) {
-    //    with(sharedPref.edit()) {
-    //        putString("gomuks_auth_cookie", cookie)
-    //        apply()
-    //    }
-    //    logSharedPreferences()
-    //}
-
-    //private fun retrieveGomuksAuthCookie() {
-    //    port?.let { port ->
-    //        val message = mapOf("action" to "getCookies")
-    //        port.postMessage(message)
-    //    }
-    //}
-
-    //private fun handleCookiesResponse(cookies: List<Map<String, Any>>) {
-    //    val serverUrl = sharedPref.getString(getString(R.string.server_url_key), null)
-    //    if (serverUrl != null) {
-    //        val gomuksAuthCookie = cookies.find { it["name"] == "gomuks_auth" }?.get("value") as? String
-    //        if (gomuksAuthCookie != null) {
-    //            storeGomuksAuthCookie(gomuksAuthCookie)
-    //        }
-    //    } else {
-    //        Log.e(LOGTAG, "Server URL is not set in shared preferences.")
-    //    }
-    //}
-
-    private fun logSharedPreferences() {
-        val allEntries = sharedPref.all
-        for ((key, value) in allEntries) {
-            Log.d(LOGTAG, "SharedPreferences: $key = $value")
-        }
-    }
-
-    private fun isSessionActive(sessionState: GeckoSession.SessionState?): Boolean {
-        val stateJson = sessionState?.toString() ?: return false
-        val jsonObject = JSONObject(stateJson)
-        
-        // Check if the session is active based on the JSON data
-        val history = jsonObject.optJSONObject("history")
-        val entries = history?.optJSONArray("entries")
-        return entries != null && entries.length() > 0
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
