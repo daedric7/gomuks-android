@@ -69,6 +69,7 @@ import android.view.inputmethod.InputMethodManager
 import android.view.animation.Interpolator
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.core.view.animation.PathInterpolatorCompat
+import org.json.JSONObject  // Import JSONObject
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -300,7 +301,7 @@ class MainActivity : ComponentActivity() {
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
         
-        runtime.webExtensionController.registerMessageHandler { message ->
+        runtime.webExtensionController.setMessageDelegate { message ->
             if (message["action"] == "cookiesResponse") {
                 val cookies = message["cookies"] as? List<Map<String, Any>>
                 if (cookies != null) {
