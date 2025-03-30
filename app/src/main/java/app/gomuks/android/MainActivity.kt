@@ -157,9 +157,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun retrieveGomuksAuthCookie() {
-        val cookieManager = android.webkit.CookieManager.getInstance()
-        val cookies = cookieManager.getCookie("https://webmuks.daedric.net")
-        val gomuksAuthCookie = cookies?.split(";")?.find { it.trim().startsWith("gomuks_auth=") }?.substringAfter("=")
+        val cookieStore = GeckoRuntime.getDefault(applicationContext).cookieStore
+        val cookies = cookieStore.getCookies("https://webmuks.daedric.net")
+        val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
         if (gomuksAuthCookie != null) {
             storeGomuksAuthCookie(gomuksAuthCookie)
         }
@@ -252,6 +252,10 @@ class MainActivity : ComponentActivity() {
                 super.onSessionStateChange(session, newState)
                 Log.d(LOGTAG, "onSessionStateChange $newState")
                 sessionState = newState
+                if (newState == GeckoSession.SessionState.ACTIVE) {
+                    // Retrieve the gomuks_auth cookie after session is active
+                    retrieveGomuksAuthCookie()
+                }
             }
         }
         session.promptDelegate = promptDelegate
@@ -442,7 +446,6 @@ class MainActivity : ComponentActivity() {
             Button(onClick = {
                 setCredentials(serverURL, username, password)
                 loadWeb()
-                retrieveGomuksAuthCookie() // Call this function after login to store the cookie
             }) {
                 Text(getString(R.string.connect))
             }
