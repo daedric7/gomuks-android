@@ -56,6 +56,7 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate
@@ -161,9 +162,9 @@ class MainActivity : ComponentActivity() {
     private fun retrieveGomuksAuthCookie() {
         val serverUrl = sharedPref.getString(getString(R.string.server_url_key), null)
         if (serverUrl != null) {
-            val cookieManager = CookieManager.getDefault().cookieStore
+            val cookieManager = GeckoRuntime.getDefaultCookieManager()
             val cookies = cookieManager.get(URI.create(serverUrl))
-            val gomuksAuthCookie = cookies?.find { it.name == "gomuks_auth" }?.value
+            val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
             if (gomuksAuthCookie != null) {
                 storeGomuksAuthCookie(gomuksAuthCookie)
             }
@@ -177,6 +178,16 @@ class MainActivity : ComponentActivity() {
         for ((key, value) in allEntries) {
             Log.d(LOGTAG, "SharedPreferences: $key = $value")
         }
+    }
+
+    private fun isSessionActive(sessionState: GeckoSession.SessionState?): Boolean {
+        val stateJson = sessionState?.toString() ?: return false
+        val jsonObject = JSONObject(stateJson)
+        
+        // Check if the session is active based on the JSON data
+        val history = jsonObject.optJSONObject("history")
+        val entries = history?.optJSONArray("entries")
+        return entries != null && entries.length() > 0
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -259,7 +270,7 @@ class MainActivity : ComponentActivity() {
                 super.onSessionStateChange(session, newState)
                 Log.d(LOGTAG, "onSessionStateChange $newState")
                 sessionState = newState
-                if (newState == GeckoSession.SessionState.ACTIVE) {
+                if (isSessionActive(newState)) {
                     // Retrieve gomuks_auth cookie after session is active
                     retrieveGomuksAuthCookie()
                 }
