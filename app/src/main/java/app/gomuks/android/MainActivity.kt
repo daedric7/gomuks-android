@@ -298,17 +298,18 @@ class MainActivity : ComponentActivity() {
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
         
-        // Explicitly specifying the type for the parameter
-        runtime.webExtensionController.setMessageDelegate(object : MessageDelegate {
-            override fun onMessage(port: WebExtension.Port, message: Any) {
+        // Create a message delegate instead of setting it directly on the controller
+        val messageDelegate = object : WebExtension.MessageDelegate {
+            override fun onMessage(nativeApp: String, message: Any?, sender: WebExtension.MessageSender): GeckoResult<Any>? {
                 if (message is Map<*, *>) {
                     val cookies = message["cookies"] as? List<Map<String, Any>>
                     cookies?.forEach { cookie ->
                         Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
                     }
                 }
+                return null
             }
-        })
+        }
 
         CoroutineScope(Dispatchers.Main).launch {
             tokenFlow.collect { pushToken ->
