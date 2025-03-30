@@ -297,14 +297,17 @@ class MainActivity : ComponentActivity() {
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
         
-        runtime.webExtensionController.setMessageDelegate { message ->
-            if (message.containsKey("cookies")) {
-                val cookies = message["cookies"] as List<Map<String, Any>>
-                for (cookie in cookies) {
-                    Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
+        // Explicitly specifying the type for the parameter
+        runtime.webExtensionController.setMessageDelegate(object : MessageDelegate {
+            override fun onMessage(port: WebExtension.Port, message: Any) {
+                if (message is Map<*, *>) {
+                    val cookies = message["cookies"] as? List<Map<String, Any>>
+                    cookies?.forEach { cookie ->
+                        Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
+                    }
                 }
             }
-        }
+        })
 
         CoroutineScope(Dispatchers.Main).launch {
             tokenFlow.collect { pushToken ->
