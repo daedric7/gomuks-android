@@ -2,153 +2,141 @@ package app.gomuks.android
 
 import android.Manifest
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.SharedPreferences
-import android.content.res.Configuration
-import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.os.Parcelable
-import android.util.Base64
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.util.Log
-import android.view.MotionEvent
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
-import android.view.WindowManager
-import android.widget.EditText
-import androidx.appcompat.app.AppCompatActivity
-import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
-import androidx.core.view.doOnLayout
-import androidx.core.view.WindowCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.updatePadding
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.net.toUri
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.model.GlideUrl
+import com.bumptech.glide.load.model.LazyHeaders
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.mozilla.geckoview.GeckoRuntime
-import org.mozilla.geckoview.GeckoSession
-import org.mozilla.geckoview.GeckoSession.ProgressDelegate
-import org.mozilla.geckoview.GeckoView
-import org.mozilla.geckoview.WebExtension
-import java.io.File
-import java.util.UUID
+import kotlinx.serialization.json.Json
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
-import android.graphics.Rect
-import android.view.inputmethod.InputMethodManager
-import android.view.animation.Interpolator
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator
-import androidx.core.view.animation.PathInterpolatorCompat
+// For conversations API
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.os.Build
+import android.os.Bundle
+import android.app.ActivityOptions
+import android.app.Service
+import android.app.NotificationChannel
+import android.os.IBinder
+import android.graphics.drawable.Icon
 
-class MainActivity : ComponentActivity() {
+class MessagingService : FirebaseMessagingService() {
     companion object {
-        private const val LOGTAG = "Gomuks/MainActivity"
-        private const val BUNDLE_KEY = "gecko"
-        private var runtime: GeckoRuntime? = null
-
-        private fun getRuntime(activity: MainActivity): GeckoRuntime {
-            return runtime ?: run {
-                val rt = GeckoRuntime.create(activity)
-                rt.settings.enterpriseRootsEnabled = true
-                rt.settings.consoleOutputEnabled = true
-                rt.settings.doubleTapZoomingEnabled = false
-                runtime = rt
-                rt
-            }
-        }
-    }
-    private val navigation = NavigationDelegate(this)
-    private val messageDelegate = MessageDelegate(this)
-    internal val portDelegate = PortDelegate(this)
-    private val promptDelegate = GeckoPrompts(this)
-
-    private lateinit var view: GeckoView
-    private lateinit var session: GeckoSession
-    private var sessionState: GeckoSession.SessionState? = null
-
-    internal lateinit var sharedPref: SharedPreferences
-    private lateinit var prefEnc: Encryption
-    internal lateinit var deviceID: UUID
-
-    internal var port: WebExtension.Port? = null
-
-    private fun initSharedPref() {
-        sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        prefEnc = Encryption(getString(R.string.pref_enc_key_name))
-        sharedPref.getString(getString(R.string.device_id_key), null).let {
-            if (it == null) {
-                deviceID = UUID.randomUUID()
-                with(sharedPref.edit()) {
-                    putString(getString(R.string.device_id_key), deviceID.toString())
-                    apply()
-                }
-                Log.d(LOGTAG, "Generated new device ID $deviceID")
-            } else {
-                Log.d(LOGTAG, "Parsing UUID $it")
-                deviceID = UUID.fromString(it)
-            }
-        }
+        private const val LOGTAG = "Gomuks/MessagingService"
     }
 
-    internal fun getPushEncryptionKey(): String {
-        return Base64.encodeToString(getOrCreatePushEncryptionKey(this, prefEnc, sharedPref), Base64.NO_WRAP)
+    override fun onCreate() {
+        super.onCreate()
+        logSharedPreferences()
     }
 
-    private fun setCredentials(serverURL: String, username: String, password: String) {
+    override fun onNewToken(token: String) {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
-            putString(getString(R.string.server_url_key), serverURL)
-            putString(getString(R.string.username_key), username)
-            putString(getString(R.string.password_key), prefEnc.encrypt(password))
+            putString(getString(R.string.push_token_key), token)
             apply()
         }
+        logSharedPreferences()
+        CoroutineScope(Dispatchers.IO).launch {
+            tokenFlow.emit(token)
+        }
     }
 
-    internal fun getCredentials(): Triple<String, String, String>? {
-        val serverURL = sharedPref.getString(getString(R.string.server_url_key), null)
-        val username = sharedPref.getString(getString(R.string.username_key), null)
-        val encPassword = sharedPref.getString(getString(R.string.password_key), null)
-        if (serverURL == null || username == null || encPassword == null) {
-            return null
+    override fun onMessageReceived(message: RemoteMessage) {
+        logSharedPreferences()
+        val pushEncKey = getExistingPushEncryptionKey(this)
+        if (pushEncKey == null) {
+            Log.e(LOGTAG, "No push encryption key found to handle $message")
+            return
         }
-        try {
-            return Triple(serverURL, username, prefEnc.decrypt(encPassword))
+        val decryptedPayload: String = try {
+            Encryption.fromPlainKey(pushEncKey).decrypt(message.data.getValue("payload"))
         } catch (e: Exception) {
-            Log.e(LOGTAG, "Failed to decrypt password", e)
-            return null
+            Log.e(LOGTAG, "Failed to decrypt $message", e)
+            return
         }
+        val data = try {
+            Json.decodeFromString<PushData>(decryptedPayload)
+        } catch (e: Exception) {
+            Log.e(LOGTAG, "Failed to parse $decryptedPayload as JSON", e)
+            return
+        }
+        Log.i(LOGTAG, "Decrypted payload: $data")
+        if (!data.dismiss.isNullOrEmpty()) {
+            with(NotificationManagerCompat.from(this)) {
+                for (dismiss in data.dismiss) {
+                    cancel(dismiss.roomID.hashCode())
+                }
+            }
+        }
+        data.messages?.forEach {
+            showMessageNotification(it)
+        }
+    }
+
+    private fun getGomuksAuthCookie(): String? {
+        // Try retrieving from shared preferences
+        val cookieFromPreferences = getGomuksAuthCookieFromSharedPreferences()
+        if (cookieFromPreferences != null) {
+            return cookieFromPreferences
+        }
+
+        // Try retrieving from cookie manager
+        val cookieFromManager = getGomuksAuthCookieFromCookieManager()
+        if (cookieFromManager != null) {
+            return cookieFromManager
+        }
+
+        // If using GeckoView, implement a similar method to retrieve the cookie
+        // val cookieFromGeckoView = getGomuksAuthCookieFromGeckoView(geckoSession)
+        // if (cookieFromGeckoView != null) {
+        //     return cookieFromGeckoView
+        // }
+
+        // Placeholder
+        return null
+    }
+
+    private fun getGomuksAuthCookieFromSharedPreferences(): String? {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        return sharedPref.getString("gomuks_auth_cookie", null)
+    }
+
+    private fun getGomuksAuthCookieFromCookieManager(): String? {
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        val cookies = cookieManager.getCookie("https://webmuks.daedric.net")
+        return cookies?.split(";")
+            ?.find { it.trim().startsWith("gomuks_auth=") }
+            ?.substringAfter("=")
     }
 
     private fun storeGomuksAuthCookie(cookie: String) {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putString("gomuks_auth_cookie", cookie)
             apply()
@@ -156,305 +144,171 @@ class MainActivity : ComponentActivity() {
         logSharedPreferences()
     }
 
-    private fun retrieveGomuksAuthCookie() {
-        val cookieJar = GeckoRuntime.getDefault(applicationContext).cookieJar
-        val cookies = cookieJar.getCookies("https://webmuks.daedric.net")
-        val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
-        if (gomuksAuthCookie != null) {
-            storeGomuksAuthCookie(gomuksAuthCookie)
+    private fun pushUserToPerson(data: PushUser, callback: (Person) -> Unit) {
+        // Retrieve the server URL from shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+
+        // Generate the full avatar URL
+        val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
+            if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
+                "$serverURL${data.avatar}"
+            } else {
+                "$serverURL/${data.avatar}"
+            }
+        } else {
+            null
+        }
+
+        // Log the entire content of data
+        Log.d(LOGTAG, "PushUser data: $data")
+        Log.d(LOGTAG, "Avatar URL: $avatarURL")
+
+        // Continue building the Person object
+        val personBuilder = Person.Builder()
+            .setKey(data.id)
+            .setName(data.name)
+            .setUri("matrix:u/${data.id.substring(1)}")
+
+        if (!avatarURL.isNullOrEmpty()) {
+            val cookie = getGomuksAuthCookie()
+            if (cookie != null) {
+                val glideUrl = GlideUrl(
+                    avatarURL,
+                    LazyHeaders.Builder()
+                        .addHeader("Cookie", "gomuks_auth=$cookie")
+                        .build()
+                )
+
+                Glide.with(applicationContext)
+                    .asBitmap()
+                    .load(glideUrl)
+                    .error(R.drawable.ic_chat) // Add an error placeholder
+                    .into(object : CustomTarget<Bitmap>() {
+                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                            personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                            callback(personBuilder.build())
+                        }
+
+                        override fun onLoadCleared(placeholder: Drawable?) {
+                            // Handle cleanup if necessary
+                            callback(personBuilder.build())
+                        }
+
+                        override fun onLoadFailed(errorDrawable: Drawable?) {
+                            super.onLoadFailed(errorDrawable)
+                            Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
+                            callback(personBuilder.build())
+                        }
+                    })
+            } else {
+                Log.e(LOGTAG, "Gomuks auth cookie not found")
+                callback(personBuilder.build())
+            }
+        } else {
+            callback(personBuilder.build())
+        }
+    }
+
+    private fun showMessageNotification(data: PushMessage) {
+        pushUserToPerson(data.sender) { sender ->
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val notifID = data.roomID.hashCode()
+
+            val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
+                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
+            } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
+                .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
+                .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
+
+            val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
+
+            val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+            Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
+
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                notifID,
+                Intent(this, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    setData(deepLinkUri)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or 
+                PendingIntent.FLAG_MUTABLE
+            )
+
+            // Create or update the conversation shortcut
+            createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
+
+            // Retrieve the bitmap for the sender's icon
+            val senderIconBitmap = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+            Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
+
+            val builder = NotificationCompat.Builder(this, channelID)
+                .setSmallIcon(R.drawable.matrix)
+                .setStyle(messagingStyle)
+                .setWhen(data.timestamp)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setLargeIcon(senderIconBitmap)  // Set the large icon
+
+            with(NotificationManagerCompat.from(this@MessagingService)) {
+                if (ActivityCompat.checkSelfPermission(
+                        this@MessagingService,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return@with
+                }
+                notify(notifID.hashCode(), builder.build())
+            }
         }
     }
 
     private fun logSharedPreferences() {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val allEntries = sharedPref.all
         for ((key, value) in allEntries) {
             Log.d(LOGTAG, "SharedPreferences: $key = $value")
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
+        val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
-        // Try to request notifications permission 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                    this, 
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS), 
-                    1
-                )
-            }
+        val chatIntent = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = "matrix:roomid/${roomID.substring(1)}".toUri()
         }
 
-        //enable Edge to Edge rendering
-        enableEdgeToEdge()
-
-        // Hide bars
-        val windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
-        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-        // Set the background color of the entire view to black, to prevent white space
-        window.decorView.setBackgroundColor(resources.getColor(android.R.color.black))
-
-        
-        initSharedPref()
-        createNotificationChannels(this)
-        view = GeckoView(this)
-        session = GeckoSession()
-        val runtime = getRuntime(this)
-        session.open(runtime)
-        view.setSession(session)
-
-        
-        // Adjust view when keyboard opens. 
-        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
-            val systemBarInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            
-            val keyboardHeight = imeInsets.bottom
-            
-            if (keyboardHeight > 0) {
-                // Adjust bottom padding to make room for keyboard
-                v.setPadding(
-                    v.paddingLeft, 
-                    v.paddingTop, 
-                    v.paddingRight, 
-                    keyboardHeight
-                )
-            } else {
-                // Reset padding when keyboard is dismissed
-                v.setPadding(
-                    v.paddingLeft, 
-                    v.paddingTop, 
-                    v.paddingRight, 
-                    0
-                )
-            }
-            
-            // Smooth out the padding change
-            v.animate()
-                .setDuration(250)
-                .start()
-            
-            // Don't consume the insets
-            insets
+        // Retrieve the icon from the sender
+        val icon = sender.icon?.loadDrawable(context)?.let { drawable ->
+            Log.d(LOGTAG, "Sender Icon Drawable: $drawable")
+            Icon.createWithBitmap((drawable as BitmapDrawable).bitmap)
         }
 
-        File(cacheDir, "upload").mkdirs()
+        val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
+            .setShortLabel(roomName)
+            .setLongLived(true)
+            .setIntent(chatIntent)
+            .setPerson(sender.toAndroidPerson()) // Convert to android.app.Person
 
-        session.progressDelegate = object : ProgressDelegate {
-            override fun onSessionStateChange(
-                session: GeckoSession,
-                newState: GeckoSession.SessionState
-            ) {
-                super.onSessionStateChange(session, newState)
-                Log.d(LOGTAG, "onSessionStateChange $newState")
-                sessionState = newState
-                if (newState == GeckoSession.State.ACTIVE) {
-                    // Retrieve the gomuks_auth cookie after session is active
-                    retrieveGomuksAuthCookie()
-                }
-            }
-        }
-        session.promptDelegate = promptDelegate
-        session.navigationDelegate = navigation
-
-        val sessWebExtController = session.webExtensionController
-        runtime.webExtensionController
-            .ensureBuiltIn("resource://android/assets/bridge/", "android@gomuks.app")
-            .accept(
-                { extension ->
-                    if (extension != null) {
-                        Log.i(LOGTAG, "Extension installed: $extension")
-                        sessWebExtController.setMessageDelegate(
-                            extension,
-                            messageDelegate,
-                            "gomuksAndroid"
-                        )
-                    } else {
-                        Log.e(LOGTAG, "Installed extension is null?")
-                    }
-                },
-                { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
-            )
-
-        CoroutineScope(Dispatchers.Main).launch {
-            tokenFlow.collect { pushToken ->
-                Log.i(
-                    LOGTAG,
-                    "Received push token from messaging service: $pushToken"
-                )
-                portDelegate.registerPush(port ?: return@collect, pushToken)
-            }
+        // Set the icon if it is available
+        if (icon != null) {
+            Log.d(LOGTAG, "Setting custom icon for shortcut")
+            shortcutBuilder.setIcon(icon)
+        } else {
+            Log.d(LOGTAG, "Setting default icon for shortcut")
+            shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
         }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (navigation.canGoBack) {
-                    session.goBack()
-                    return
-                }
-                finish()
-            }
-        })
-        val parcel = savedInstanceState?.getParcelable(BUNDLE_KEY, GeckoSession.SessionState::class.java)
-        if (parcel != null) {
-            session.restoreState(parcel)
-            setContentView(view)
-        } else if (!loadWeb()) {
-            setContent {
-                ServerInput()
-            }
-        }
-        Log.i(LOGTAG, "Initialization complete (loaded saved state: ${parcel != null})")
-    }
+        val shortcut = shortcutBuilder.build()
 
-    override fun onStart() {
-        super.onStart()
-        Log.i(LOGTAG, "onStart")
-        session.setActive(true)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.i(LOGTAG, "onPause")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.i(LOGTAG, "onResume")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.i(LOGTAG, "onStop")
-        session.setActive(false)
-    }
-
-    override fun onRestart() {
-        super.onRestart()
-        Log.i(LOGTAG, "onRestart")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.i(LOGTAG, "onDestroy")
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        Log.d(LOGTAG, "onSaveInstanceState $sessionState")
-        outState.putParcelable(BUNDLE_KEY, sessionState)
-        super.onSaveInstanceState(outState)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (this::session.isInitialized) {
-            parseIntentURL(intent)?.let {
-                session.loadUri(it)
-            }
-        }
-    }
-
-    fun getServerURL(): String? {
-        return sharedPref.getString(getString(R.string.server_url_key), null)
-    }
-
-    fun openServerInputWithError(error: String) {
-        val (serverURL, username, password) = getCredentials() ?: Triple("", "", "")
-        setContent {
-            ServerInput(serverURL, username, password, error)
-        }
-    }
-
-    private fun parseIntentURL(overrideIntent: Intent? = null): String? {
-        var serverURL = getServerURL() ?: return null
-        val intent = overrideIntent ?: this.intent
-        var targetURI = intent.data
-        if (intent.action == Intent.ACTION_VIEW && targetURI != null) {
-            if (targetURI.host == "matrix.to") {
-                targetURI = matrixToURLToMatrixURI(targetURI)
-                if (targetURI == null) {
-                    Log.w(LOGTAG, "Failed to parse matrix.to URL ${intent.data}")
-                } else {
-                    Log.d(LOGTAG, "Parsed matrix.to URL ${intent.data} -> $targetURI")
-                }
-            }
-            if (targetURI?.scheme == "matrix") {
-                serverURL = Uri.parse(serverURL)
-                    .buildUpon()
-                    .encodedFragment("/uri/${Uri.encode(targetURI.toString())}")
-                    .build()
-                    .toString()
-                Log.d(LOGTAG, "Converted view intent $targetURI -> $serverURL")
-                return serverURL
-            }
-        }
-        if (overrideIntent != null) {
-            Log.w(
-                LOGTAG,
-                "No intent URL found ${overrideIntent.action} ${overrideIntent.data}"
-            )
-            return null
-        }
-        return serverURL
-    }
-
-    private fun loadWeb(): Boolean {
-        session.loadUri(parseIntentURL() ?: return false)
-        setContentView(view)
-        return true
-    }
-
-    @Composable
-    fun ServerInput(
-        initialURL: String = "",
-        initialUsername: String = "",
-        initialPassword: String = "",
-        error: String? = null
-    ) {
-        var serverURL by remember { mutableStateOf(initialURL) }
-        var username by remember { mutableStateOf(initialUsername) }
-        var password by remember { mutableStateOf(initialPassword) }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            TextField(
-                value = serverURL,
-                onValueChange = { serverURL = it },
-                label = { Text(getString(R.string.server_url)) }
-            )
-            TextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text(getString(R.string.username)) }
-            )
-            TextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text(getString(R.string.password)) },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            Button(onClick = {
-                setCredentials(serverURL, username, password)
-                loadWeb()
-            }) {
-                Text(getString(R.string.connect))
-            }
-            if (error != null) {
-                Text(
-                    text = error,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
+        shortcutManager.addDynamicShortcuts(listOf(shortcut))
     }
 }
