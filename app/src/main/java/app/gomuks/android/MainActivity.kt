@@ -253,8 +253,40 @@ class MainActivity : ComponentActivity() {
                 Log.d(LOGTAG, "onSessionStateChange $newState")
                 sessionState = newState
                 if (newState == GeckoSession.State.ACTIVE) {
+                    // First, get the StorageController from your session
+                    val storageController = session.storageController
+                    val serverURL = sharedPref.getString(getString(R.string.server_url_key), null)
+                    // Parse the URL to extract the domain
+                    val domain = try {
+                        val url = URL(serverUrl)
+                        url.host
+                    } catch (e: Exception) {
+                        Log.e("URLParsing", "Failed to parse URL", e)
+                        null
+                    }
+                    
+                    // To get a specific cookie, you need to provide the domain and optionally the name and path
+                    domain?.let { 
+                        session.storageController.cookies.getCookie(
+                            it,
+                            null,
+                            null,
+                            object : GeckoResult.Callback<List<Cookie>> {
+                                override fun onSuccess(cookies: List<Cookie>?) {
+                                    cookies?.forEach { cookie ->
+                                        Log.d("CookieInfo", "Name: ${cookie.name}, Value: ${cookie.value}")
+                                    }
+                                }
+                                
+                                override fun onError(error: Throwable) {
+                                    Log.e("CookieError", "Failed to get cookies", error)
+                                }
+                            }
+                        )
+                    }
+                   
                     // Retrieve the gomuks_auth cookie after session is active
-                    retrieveGomuksAuthCookie()
+                    //retrieveGomuksAuthCookie()
                 }
             }
         }
