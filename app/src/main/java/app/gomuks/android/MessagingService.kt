@@ -17,6 +17,7 @@ import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -25,6 +26,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 // For conversations API
 import android.content.pm.ShortcutInfo
@@ -48,6 +54,7 @@ class MessagingService : FirebaseMessagingService() {
             putString(getString(R.string.push_token_key), token)
             apply()
         }
+        logSharedPreferences()
         CoroutineScope(Dispatchers.IO).launch {
             tokenFlow.emit(token)
         }
@@ -84,6 +91,42 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
+    private fun getGomuksAuthCookie(): String? {
+        // Try retrieving from shared preferences
+        val cookieFromPreferences = getGomuksAuthCookieFromSharedPreferences()
+        if (cookieFromPreferences != null) {
+            return cookieFromPreferences
+        }
+
+        // Try retrieving from cookie manager
+        val cookieFromManager = getGomuksAuthCookieFromCookieManager()
+        if (cookieFromManager != null) {
+            return cookieFromManager
+        }
+
+        // If using GeckoView, implement a similar method to retrieve the cookie
+        // val cookieFromGeckoView = getGomuksAuthCookieFromGeckoView(geckoSession)
+        // if (cookieFromGeckoView != null) {
+        //     return cookieFromGeckoView
+        // }
+
+        // Placeholder
+        return null
+    }
+
+    private fun getGomuksAuthCookieFromSharedPreferences(): String? {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        return sharedPref.getString("gomuks_auth_cookie", null)
+    }
+
+    private fun getGomuksAuthCookieFromCookieManager(): String? {
+        val cookieManager = android.webkit.CookieManager.getInstance()
+        val cookies = cookieManager.getCookie("https://webmuks.daedric.net")
+        return cookies?.split(";")
+            ?.find { it.trim().startsWith("gomuks_auth=") }
+            ?.substringAfter("=")
+    }
+
     private fun pushUserToPerson(data: PushUser, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
@@ -111,25 +154,53 @@ class MessagingService : FirebaseMessagingService() {
             .setUri("matrix:u/${data.id.substring(1)}")
 
         if (!avatarURL.isNullOrEmpty()) {
-            Glide.with(applicationContext)
-                .asBitmap()
-                .load(avatarURL)
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
-                        callback(personBuilder.build())
-                    }
+            val cookie = getGomuksAuthCookie()
+            if (cookie != null) {
+                val okHttpClient = OkHttpClient.Builder()
+                    .cookieJar(object : CookieJar {
+                        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {}
+                        override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                            return listOf(Cookie.Builder()
+                                .name("gomuks_auth")
+                                .value(cookie)
+                                .domain(url.host)
+                                .build())
+                        }
+                    })
+                    .build()
 
-                    override fun onLoadCleared(placeholder: Drawable?) {
-                        // Handle cleanup if necessary
-                        callback(personBuilder.build())
-                    }
+                val requestBuilder = Request.Builder().url(avatarURL)
+                val request = requestBuilder.build()
 
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        super.onLoadFailed(errorDrawable)
-                        callback(personBuilder.build())
-                    }
-                })
+                val requestOptions = RequestOptions()
+                    .addHeader("Cookie", "gomuks_auth=$cookie")
+                    .error(R.drawable.ic_chat) // Add an error placeholder
+
+                Glide.with(applicationContext)
+                    .asBitmap()
+                    .apply(requestOptions)
+                    .load(request)
+                    .into(object : CustomTarget<Bitmap>() {
+                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                            personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                            callback(personBuilder.build())
+                        }
+
+                        override fun onLoadCleared(placeholder: Drawable?) {
+                            // Handle cleanup if necessary
+                            callback(personBuilder.build())
+                        }
+
+                        override fun onLoadFailed(errorDrawable: Drawable?) {
+                            super.onLoadFailed(errorDrawable)
+                            Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
+                            callback(personBuilder.build())
+                        }
+                    })
+            } else {
+                Log.e(LOGTAG, "Gomuks auth cookie not found")
+                callback(personBuilder.build())
+            }
         } else {
             callback(personBuilder.build())
         }
@@ -192,6 +263,14 @@ class MessagingService : FirebaseMessagingService() {
                 }
                 notify(notifID.hashCode(), builder.build())
             }
+        }
+    }
+
+    private fun logSharedPreferences() {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val allEntries = sharedPref.all
+        for ((key, value) in allEntries) {
+            Log.d(LOGTAG, "SharedPreferences: $key = $value")
         }
     }
 
