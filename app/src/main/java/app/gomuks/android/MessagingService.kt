@@ -135,11 +135,8 @@ class MessagingService : FirebaseMessagingService() {
         }
 
        
-        //val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder()
-        //    .setDesiredHeight(600)
-        //    .setIcon(IconCompat.createWithResource(this@MessagingService, R.drawable.ic_chat))
-        //    .setIntent(pendingIntent)
-        //    .build()
+        // Retrieve the bitmap for the sender's icon
+        val senderIconBitmap = sender.icon?.loadDrawable(this)?.toBitmap()
     
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
@@ -150,6 +147,7 @@ class MessagingService : FirebaseMessagingService() {
             //.setBubbleMetadata(bubbleMetadata)  // Add bubble metadata here
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setLargeIcon(senderIconBitmap)  // Set the large icon
     
         with(NotificationManagerCompat.from(this@MessagingService)) {
             if (ActivityCompat.checkSelfPermission(
