@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Gomuks Android</string>
+    <string name="app_name">Gomuks Android AV</string>
 
     <string name="server_url">URL do Servidor</string>
     <string name="connect">Ligar</string>
@@ -39,4 +39,8 @@
     <string name="repost_confirm_title">Tem a certeza?</string>
     <string name="repost_confirm_resend">Reenviar</string>
     <string name="repost_confirm_cancel">Cancelar</string>
+
+    <!-- Conversations api -->
+    <string name="shortcut_chat">Chat</string>
+    <string name="shortcut_chat_long">Open chat</string>    
 </resources>

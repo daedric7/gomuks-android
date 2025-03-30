@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:shortcutId="default_chat"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_send"
+        android:shortcutShortLabel="@string/shortcut_chat"
+        android:shortcutLongLabel="@string/shortcut_chat_long"
+        android:targetPackage="pt.aguiarvieira.gomuks.av"
+        android:targetClass="app.gomuks.android.MainActivity"/>
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="pt.aguiarvieira.gomuks.av"
+            android:targetClass="app.gomuks.android.MainActivity"/>
+</shortcuts>

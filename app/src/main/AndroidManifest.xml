@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT"/>
+    <uses-permission android:name="com.android.launcher.permission.UNINSTALL_SHORTCUT"/>
+    <uses-permission android:name="android.permission.BUBBLE_NOTIFICATION" />
+
 
     <queries>
         <intent>
@@ -34,9 +38,22 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Gomuks">
+        <!-- Define the app's shortcuts -->
+        <meta-data
+            android:name="android.app.shortcuts"
+            android:resource="@xml/shortcuts" />
+        
+        <!-- Define the background activity launch permission -->
+        <meta-data
+            android:name="android.app.backgroundActivityLaunchPermission"
+            android:value="true" />
+        <meta-data
+            android:name="android.allows_bubbles"
+            android:value="true" />
         <service
             android:name=".MessagingService"
             android:enabled="true"
+            android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
