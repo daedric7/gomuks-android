@@ -56,15 +56,12 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.WebExtension
 import java.io.File
-import java.net.CookieManager
-import java.net.URI
 import java.util.UUID
 
 import android.graphics.Rect
@@ -160,11 +157,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun retrieveGomuksAuthCookie() {
+        port?.let { port ->
+            val message = mapOf("action" to "getCookies")
+            port.postMessage(message)
+        }
+    }
+
+    private fun handleCookiesResponse(cookies: List<Map<String, Any>>) {
         val serverUrl = sharedPref.getString(getString(R.string.server_url_key), null)
         if (serverUrl != null) {
-            val cookieManager = GeckoRuntime.getDefaultCookieManager()
-            val cookies = cookieManager.get(URI.create(serverUrl))
-            val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
+            val gomuksAuthCookie = cookies.find { it["name"] == "gomuks_auth" }?.get("value") as? String
             if (gomuksAuthCookie != null) {
                 storeGomuksAuthCookie(gomuksAuthCookie)
             }
@@ -297,6 +299,15 @@ class MainActivity : ComponentActivity() {
                 },
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
+        
+        runtime.webExtensionController.registerMessageHandler { message ->
+            if (message["action"] == "cookiesResponse") {
+                val cookies = message["cookies"] as? List<Map<String, Any>>
+                if (cookies != null) {
+                    handleCookiesResponse(cookies)
+                }
+            }
+        }
 
         CoroutineScope(Dispatchers.Main).launch {
             tokenFlow.collect { pushToken ->
