@@ -12,8 +12,6 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationCompat.MessagingStyle
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
@@ -36,6 +34,7 @@ import android.app.ActivityOptions
 import android.app.Service
 import android.app.NotificationChannel
 import android.os.IBinder
+import android.graphics.drawable.Icon
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -141,10 +140,10 @@ class MessagingService : FirebaseMessagingService() {
             val notifID = data.roomID.hashCode()
 
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
-                MessagingStyle.extractMessagingStyleFromNotification(it.notification)
-            } ?: MessagingStyle(pushUserToPerson(data.self)))
+                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
+            } ?: NotificationCompat.MessagingStyle(pushUserToPerson(data.self) { person -> person }))
                 .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
-                .addMessage(MessagingStyle.Message(data.text, data.timestamp, sender))
+                .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
 
             val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
 
@@ -169,7 +168,7 @@ class MessagingService : FirebaseMessagingService() {
             createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
             // Retrieve the bitmap for the sender's icon
-            val senderIconBitmap = (sender.icon?.toIcon(context)?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+            val senderIconBitmap = (sender.icon?.toIcon(applicationContext)?.loadDrawable(this) as? BitmapDrawable)?.bitmap
             Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
 
             val builder = NotificationCompat.Builder(this, channelID)
