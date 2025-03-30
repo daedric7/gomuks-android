@@ -157,8 +157,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun retrieveGomuksAuthCookie() {
-        val cookieStore = GeckoRuntime.getDefault(applicationContext).cookieStore
-        val cookies = cookieStore.getCookies("https://webmuks.daedric.net")
+        val cookieJar = GeckoRuntime.getDefault(applicationContext).cookieJar
+        val cookies = cookieJar.getCookies("https://webmuks.daedric.net")
         val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
         if (gomuksAuthCookie != null) {
             storeGomuksAuthCookie(gomuksAuthCookie)
@@ -252,7 +252,7 @@ class MainActivity : ComponentActivity() {
                 super.onSessionStateChange(session, newState)
                 Log.d(LOGTAG, "onSessionStateChange $newState")
                 sessionState = newState
-                if (newState == GeckoSession.SessionState.ACTIVE) {
+                if (newState == GeckoSession.State.ACTIVE) {
                     // Retrieve the gomuks_auth cookie after session is active
                     retrieveGomuksAuthCookie()
                 }
