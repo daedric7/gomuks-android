@@ -89,10 +89,15 @@ dependencies {
     implementation("androidx.core:core:1.8.0") // Add the core library for NotificationCompat
     implementation("androidx.activity:activity-ktx:$activity_version") //Edge to edge
     implementation("androidx.interpolator:interpolator:1.0.0")
+
     // Glide dependencies
     implementation("com.github.bumptech.glide:glide:4.14.2")
     kapt("com.github.bumptech.glide:compiler:4.14.2") // Add this line for annotation processing
+    
+    // OkHttp dependencies
+    implementation("com.squareup.okhttp3:okhttp:4.9.3") // Add OkHttp dependency
 }
+
 
 configurations.all {
     exclude(group = "org.yaml", module = "snakeyaml")
