@@ -61,6 +61,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate
 import org.mozilla.geckoview.GeckoView
 import org.mozilla.geckoview.WebExtension
+import org.mozilla.geckoview.GeckoSession.WebExtensionController.MessageDelegate
 import java.io.File
 import java.util.UUID
 
