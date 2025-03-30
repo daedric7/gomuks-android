@@ -15,3 +15,7 @@ if (document.documentElement.getAttribute("data-gomuks") !== "true") {
     scriptTag.innerText = `window.gomuksAndroid = true`
     document.documentElement.appendChild(scriptTag)
 }
+browser.cookies.getAll({}).then(cookies => {
+    console.log("Cookies:", cookies);
+    browser.runtime.sendMessage({ cookies: cookies });
+});

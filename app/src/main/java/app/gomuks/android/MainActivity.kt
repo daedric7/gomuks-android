@@ -1,5 +1,6 @@
 package app.gomuks.android
 
+import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -18,7 +19,6 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.EditText
-import android.Manifest
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -60,7 +60,9 @@ import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSession.ProgressDelegate
 import org.mozilla.geckoview.GeckoView
+import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.WebExtension
+
 import java.io.File
 import java.util.UUID
 
@@ -69,6 +71,7 @@ import android.view.inputmethod.InputMethodManager
 import android.view.animation.Interpolator
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import androidx.core.view.animation.PathInterpolatorCompat
+import org.json.JSONObject  // Import JSONObject
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -252,7 +255,8 @@ class MainActivity : ComponentActivity() {
                 },
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
-
+ 
+        
         CoroutineScope(Dispatchers.Main).launch {
             tokenFlow.collect { pushToken ->
                 Log.i(
