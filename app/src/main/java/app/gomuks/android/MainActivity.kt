@@ -280,6 +280,19 @@ class MainActivity : ComponentActivity() {
         session.navigationDelegate = navigation
 
         val sessWebExtController = session.webExtensionController
+        
+        // Define your message delegate , for cookies
+        val messageDelegate = object : WebExtension.MessageDelegate {
+            override fun onMessage(message: Any, sender: WebExtension.MessageSender): GeckoResult<Any>? {
+                if (message is Map<*, *>) {
+                    val cookies = message["cookies"] as? List<Map<String, Any>>
+                    cookies?.forEach { cookie ->
+                        Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
+                    }
+                }
+                return GeckoResult.fromValue(null)
+            }
+        }
         runtime.webExtensionController
             .ensureBuiltIn("resource://android/assets/bridge/", "android@gomuks.app")
             .accept(
@@ -298,19 +311,6 @@ class MainActivity : ComponentActivity() {
                 { e -> Log.e(LOGTAG, "Error registering WebExtension", e) }
             )
         
-        // Create a message delegate instead of setting it directly on the controller
-        val messageDelegate = object : WebExtension.MessageDelegate {
-            override fun onMessage(nativeApp: String, message: Any?, sender: WebExtension.MessageSender): GeckoResult<Any>? {
-                if (message is Map<*, *>) {
-                    val cookies = message["cookies"] as? List<Map<String, Any>>
-                    cookies?.forEach { cookie ->
-                        Log.d("GeckoView", "Cookie: ${cookie["name"]} = ${cookie["value"]}")
-                    }
-                }
-                return null
-            }
-        }
-
         CoroutineScope(Dispatchers.Main).launch {
             tokenFlow.collect { pushToken ->
                 Log.i(
