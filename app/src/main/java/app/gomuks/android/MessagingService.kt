@@ -44,6 +44,8 @@ import android.app.Service
 import android.app.NotificationChannel
 import android.os.IBinder
 import android.graphics.drawable.Icon
+import com.bumptech.glide.Glide
+
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -99,54 +101,20 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun getGomuksAuthCookie(): String? {
-        // Try retrieving from shared preferences
-        val cookieFromPreferences = getGomuksAuthCookieFromSharedPreferences()
-        if (cookieFromPreferences != null) {
-            return cookieFromPreferences
-        }
-
-        // Try retrieving from cookie manager
-        val cookieFromManager = getGomuksAuthCookieFromCookieManager()
-        if (cookieFromManager != null) {
-            return cookieFromManager
-        }
-
-        // If using GeckoView, implement a similar method to retrieve the cookie
-        // val cookieFromGeckoView = getGomuksAuthCookieFromGeckoView(geckoSession)
-        // if (cookieFromGeckoView != null) {
-        //     return cookieFromGeckoView
-        // }
-
-        // Placeholder
-        return null
-    }
-
-    private fun getGomuksAuthCookieFromSharedPreferences(): String? {
-        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        return sharedPref.getString("gomuks_auth_cookie", null)
-    }
-
-    private fun getGomuksAuthCookieFromCookieManager(): String? {
-        val cookieManager = android.webkit.CookieManager.getInstance()
-        val cookies = cookieManager.getCookie("https://webmuks.daedric.net")
-        return cookies?.split(";")
-            ?.find { it.trim().startsWith("gomuks_auth=") }
-            ?.substringAfter("=")
-    }
 
     private fun pushUserToPerson(data: PushUser, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
 
-        // Generate the full avatar URL
+        // Generate the full avatar URL for the sender
         val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
-            if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
+            val baseURL = if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
                 "$serverURL${data.avatar}"
             } else {
                 "$serverURL/${data.avatar}"
             }
+            "$baseURL?encrypted=false&image_auth=$imageAuth"
         } else {
             null
         }
@@ -162,40 +130,44 @@ class MessagingService : FirebaseMessagingService() {
             .setUri("matrix:u/${data.id.substring(1)}")
 
         if (!avatarURL.isNullOrEmpty()) {
-            val cookie = getGomuksAuthCookie()
-            if (cookie != null) {
-                val glideUrl = GlideUrl(
-                    avatarURL,
-                    LazyHeaders.Builder()
-                        .addHeader("Cookie", "gomuks_auth=$cookie")
-                        .build()
-                )
+            val glideUrl = GlideUrl(
+                avatarURL,
+                LazyHeaders.Builder()
+                    .addHeader("Cookie", "gomuks_auth=$cookie")
+                    .build()
+            )
 
-                Glide.with(applicationContext)
-                    .asBitmap()
-                    .load(glideUrl)
-                    .error(R.drawable.ic_chat) // Add an error placeholder
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            personBuilder.setIcon(IconCompat.createWithBitmap(resource))
-                            callback(personBuilder.build())
-                        }
+            if (!avatarURL.isNullOrEmpty()) {
+        val glideUrl = GlideUrl(
+            avatarURL,
+            LazyHeaders.Builder()
+                .addHeader("Sec-Fetch-Site", "cross-site")
+                .addHeader("Sec-Fetch-Mode", "no-cors")
+                .addHeader("Sec-Fetch-Dest", "image")
+                .build()
+        )
 
-                        override fun onLoadCleared(placeholder: Drawable?) {
-                            // Handle cleanup if necessary
-                            callback(personBuilder.build())
-                        }
-
-                        override fun onLoadFailed(errorDrawable: Drawable?) {
-                            super.onLoadFailed(errorDrawable)
-                            Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
-                            callback(personBuilder.build())
-                        }
-                    })
-            } else {
-                Log.e(LOGTAG, "Gomuks auth cookie not found")
-                callback(personBuilder.build())
-            }
+            Glide.with(context)
+                .asBitmap()
+                .load(glideUrl)
+                .error(R.drawable.ic_chat) // Add an error placeholder
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                        callback(personBuilder.build())
+                    }
+    
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
+                        callback(personBuilder.build())
+                    }
+    
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        super.onLoadFailed(errorDrawable)
+                        Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
+                        callback(personBuilder.build())
+                    }
+                })
         } else {
             callback(personBuilder.build())
         }
