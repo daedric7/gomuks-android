@@ -90,7 +90,9 @@ class MessagingService : FirebaseMessagingService() {
             }
         }
         data.messages?.forEach {
-            showMessageNotification(it, data.imageAuth)
+            data.imageAuth?.let { imageAuth ->
+                showMessageNotification(it, imageAuth)
+            }
         }
     }
 
