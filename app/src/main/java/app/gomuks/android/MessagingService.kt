@@ -8,7 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Icon
+import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -111,7 +111,7 @@ class MessagingService : FirebaseMessagingService() {
             .setUri("matrix:u/${data.id.substring(1)}")
 
         if (!avatarURL.isNullOrEmpty()) {
-            Glide.with(this)
+            Glide.with(applicationContext)
                 .asBitmap()
                 .load(avatarURL)
                 .into(object : CustomTarget<Bitmap>() {
