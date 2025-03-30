@@ -138,39 +138,40 @@ class MessagingService : FirebaseMessagingService() {
             )
 
             if (!avatarURL.isNullOrEmpty()) {
-        val glideUrl = GlideUrl(
-            avatarURL,
-            LazyHeaders.Builder()
-                .addHeader("Sec-Fetch-Site", "cross-site")
-                .addHeader("Sec-Fetch-Mode", "no-cors")
-                .addHeader("Sec-Fetch-Dest", "image")
-                .build()
-        )
-
-            Glide.with(context)
-                .asBitmap()
-                .load(glideUrl)
-                .error(R.drawable.ic_chat) // Add an error placeholder
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
-                        callback(personBuilder.build())
-                    }
-    
-                    override fun onLoadCleared(placeholder: Drawable?) {
-                        // Handle cleanup if necessary
-                        callback(personBuilder.build())
-                    }
-    
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        super.onLoadFailed(errorDrawable)
-                        Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
-                        callback(personBuilder.build())
-                    }
-                })
-        } else {
-            callback(personBuilder.build())
-        }
+                val glideUrl = GlideUrl(
+                    avatarURL,
+                    LazyHeaders.Builder()
+                        .addHeader("Sec-Fetch-Site", "cross-site")
+                        .addHeader("Sec-Fetch-Mode", "no-cors")
+                        .addHeader("Sec-Fetch-Dest", "image")
+                        .build()
+                )
+        
+                    Glide.with(context)
+                        .asBitmap()
+                        .load(glideUrl)
+                        .error(R.drawable.ic_chat) // Add an error placeholder
+                        .into(object : CustomTarget<Bitmap>() {
+                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                                callback(personBuilder.build())
+                            }
+            
+                            override fun onLoadCleared(placeholder: Drawable?) {
+                                // Handle cleanup if necessary
+                                callback(personBuilder.build())
+                            }
+            
+                            override fun onLoadFailed(errorDrawable: Drawable?) {
+                                super.onLoadFailed(errorDrawable)
+                                Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
+                                callback(personBuilder.build())
+                            }
+                        })
+                } else {
+                    callback(personBuilder.build())
+                }
+            }
     }
 
     private fun showMessageNotification(data: PushMessage) {
