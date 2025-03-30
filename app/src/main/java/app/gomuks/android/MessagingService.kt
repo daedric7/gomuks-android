@@ -76,15 +76,28 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     private fun pushUserToPerson(data: PushUser): Person {
-        // TODO include avatar
-        // Log the entire content of data
-        Log.d(LOGTAG, "PushUser data: $data")
-        return Person.Builder()
+        // Retrieve the server URL from shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+        // Generate the full avatar URL
+        val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
+            "$serverURL${data.avatar}"
+        } else {
+            null
+        }
+        // Continue building the Person object
+        val personBuilder = Person.Builder()
             .setKey(data.id)
             .setName(data.name)
             .setUri("matrix:u/${data.id.substring(1)}")
-            .build()
-    }
+    
+        // Check if the avatar URL is not null and add it to the Person.Builder
+        if (!avatarURL.isNullOrEmpty()) {
+            personBuilder.setIcon(IconCompat.createWithContentUri(avatarURL))
+        }
+    
+        return personBuilder.build()
+        }
 
     private fun showMessageNotification(data: PushMessage) {
         val sender = pushUserToPerson(data.sender)
