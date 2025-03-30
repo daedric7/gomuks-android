@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.gms.google.services)
+    id("kotlin-kapt") // Add this line for annotation processing
 }
 
 android {
