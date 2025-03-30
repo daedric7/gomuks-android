@@ -6,7 +6,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Icon
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -26,8 +27,12 @@ import kotlinx.serialization.json.Json
 // For conversations API
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
-import android.graphics.drawable.Icon
-import android.app.Notification
+import android.os.Build
+import android.os.Bundle
+import android.app.ActivityOptions
+import android.app.Service
+import android.app.NotificationChannel
+import android.os.IBinder
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -35,8 +40,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     override fun onNewToken(token: String) {
-        val sharedPref =
-            getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putString(getString(R.string.push_token_key), token)
             apply()
@@ -81,65 +85,69 @@ class MessagingService : FirebaseMessagingService() {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+
         // Generate the full avatar URL
         val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
             "$serverURL${data.avatar}"
         } else {
             null
         }
+
+        // Log the entire content of data
+        Log.d(LOGTAG, "PushUser data: $data")
+        Log.d(LOGTAG, "Avatar URL: $avatarURL")
+
         // Continue building the Person object
         val personBuilder = Person.Builder()
             .setKey(data.id)
             .setName(data.name)
             .setUri("matrix:u/${data.id.substring(1)}")
-    
+
         // Check if the avatar URL is not null and add it to the Person.Builder
         if (!avatarURL.isNullOrEmpty()) {
             personBuilder.setIcon(IconCompat.createWithContentUri(avatarURL))
         }
-    
+
         return personBuilder.build()
-        }
+    }
 
     private fun showMessageNotification(data: PushMessage) {
         val sender = pushUserToPerson(data.sender)
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val notifID = data.roomID.hashCode()
-    
-        // Retrieve existing MessagingStyle or create new one
+
         val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
             MessagingStyle.extractMessagingStyleFromNotification(it.notification)
         } ?: MessagingStyle(pushUserToPerson(data.self)))
             .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
             .addMessage(MessagingStyle.Message(data.text, data.timestamp, sender))
-    
+
         val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
-    
+
+        val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+        Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
+
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            notifID,
             Intent(this, MainActivity::class.java).apply {
                 action = Intent.ACTION_VIEW
-                val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
-                Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
-                setData(deepLinkUri)  // Make sure to set the URI here
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK // Add this flag
+                setData(deepLinkUri)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
             },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            PendingIntent.FLAG_UPDATE_CURRENT or 
+            PendingIntent.FLAG_MUTABLE
         )
-    
+
         // Create or update the conversation shortcut
         createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
 
-        val chatIntent = Intent(this@MessagingService, MainActivity::class.java).apply {
-            putExtra("ROOM_ID", data.roomID)// Or any other extra you need to pass
-            putExtra("event_id", data.eventID)
-        }
-
-       
         // Retrieve the bitmap for the sender's icon
         val senderIconBitmap = sender.icon?.loadDrawable(this)?.toBitmap()
-    
+        Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
+
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
             .setStyle(messagingStyle)
@@ -150,7 +158,7 @@ class MessagingService : FirebaseMessagingService() {
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setLargeIcon(senderIconBitmap)  // Set the large icon
-    
+
         with(NotificationManagerCompat.from(this@MessagingService)) {
             if (ActivityCompat.checkSelfPermission(
                     this@MessagingService,
@@ -162,7 +170,7 @@ class MessagingService : FirebaseMessagingService() {
             notify(notifID.hashCode(), builder.build())  // Notify with the bubble metadata included
         }
     }
-    
+
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
@@ -173,7 +181,8 @@ class MessagingService : FirebaseMessagingService() {
 
         // Retrieve the icon from the sender
         val icon = sender.icon?.loadDrawable(context)?.let { drawable ->
-            Icon.createWithBitmap(drawable.toBitmap())
+            Log.d(LOGTAG, "Sender Icon Drawable: $drawable")
+            Icon.createWithBitmap((drawable as BitmapDrawable).bitmap)
         }
 
         val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
@@ -184,8 +193,10 @@ class MessagingService : FirebaseMessagingService() {
 
         // Set the icon if it is available
         if (icon != null) {
+            Log.d(LOGTAG, "Setting custom icon for shortcut")
             shortcutBuilder.setIcon(icon)
         } else {
+            Log.d(LOGTAG, "Setting default icon for shortcut")
             shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
         }
 
@@ -193,5 +204,4 @@ class MessagingService : FirebaseMessagingService() {
 
         shortcutManager.addDynamicShortcuts(listOf(shortcut))
     }
-    
 }
