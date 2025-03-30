@@ -156,14 +156,14 @@ class MainActivity : ComponentActivity() {
         logSharedPreferences()
     }
 
-    private fun retrieveGomuksAuthCookie() {
-        val cookieJar = GeckoRuntime.getDefault(applicationContext).cookieJar
-        val cookies = cookieJar.getCookies("https://webmuks.daedric.net")
-        val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
-        if (gomuksAuthCookie != null) {
-            storeGomuksAuthCookie(gomuksAuthCookie)
-        }
-    }
+    //private fun retrieveGomuksAuthCookie() {
+    //    val cookieJar = GeckoRuntime.getDefault(applicationContext).cookieJar
+    //    val cookies = cookieJar.getCookies("https://webmuks.daedric.net")
+    //    val gomuksAuthCookie = cookies.find { it.name == "gomuks_auth" }?.value
+    //    if (gomuksAuthCookie != null) {
+    //        storeGomuksAuthCookie(gomuksAuthCookie)
+    //    }
+   // }
 
     private fun logSharedPreferences() {
         val allEntries = sharedPref.all
