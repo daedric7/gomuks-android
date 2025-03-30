@@ -273,10 +273,6 @@ class MainActivity : ComponentActivity() {
                 super.onSessionStateChange(session, newState)
                 Log.d(LOGTAG, "onSessionStateChange $newState")
                 sessionState = newState
-                if (isSessionActive(newState)) {
-                    // Retrieve gomuks_auth cookie after session is active
-                    retrieveGomuksAuthCookie()
-                }
             }
         }
         session.promptDelegate = promptDelegate
