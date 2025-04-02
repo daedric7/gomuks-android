@@ -50,14 +50,14 @@ fun createNotificationChannels(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannelCompat.Builder(
             GROUP_NOTIFICATION_CHANNEL_ID,
-            NotificationManagerCompat.IMPORTANCE_HIGH
+            NotificationManagerCompat.IMPORTANCE_DEFAULT
         )
             .setName(context.getString(R.string.notification_channel_group))
             .setDescription(context.getString(R.string.notification_channel_group))
             .setSound(groupSoundUri, null)
             .setVibrationPattern(longArrayOf(0, 1000, 500, 1000))  // Different vibration pattern for group notifications
             .setLightsEnabled(true)
-            .setLightColor(R.color.secondary_color)  // Different light color for group notifications
+            .setLightColor(R.color.primary_color)  // Different light color for group notifications
             .build()
     )
 }
