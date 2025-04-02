@@ -95,7 +95,8 @@ class MessagingService : FirebaseMessagingService() {
         }
         data.messages?.forEach {
             data.imageAuth?.let { imageAuth ->
-                showMessageNotification(it, imageAuth, data.roomName)
+                // Pass roomName and roomAvatar from the message to showMessageNotification
+                showMessageNotification(it, imageAuth, it.roomName, it.roomAvatar)
             }
         }
     }
@@ -174,7 +175,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?) {
+    private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
@@ -210,11 +211,11 @@ class MessagingService : FirebaseMessagingService() {
             // Retrieve the avatar for the room if it's a group message
             val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
             val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
-            val roomAvatarURL = if (!serverURL.isNullOrEmpty() && !data.roomAvatar.isNullOrEmpty()) {
-                val baseURL = if (serverURL.endsWith("/") || data.roomAvatar.startsWith("/")) {
-                    "$serverURL${data.roomAvatar}"
+            val roomAvatarURL = if (!serverURL.isNullOrEmpty() && !roomAvatar.isNullOrEmpty()) {
+                val baseURL = if (serverURL.endsWith("/") || roomAvatar.startsWith("/")) {
+                    "$serverURL${roomAvatar}"
                 } else {
-                    "$serverURL/${data.roomAvatar}"
+                    "$serverURL/${roomAvatar}"
                 }
                 "$baseURL?encrypted=false&image_auth=$imageAuth"
             } else {
