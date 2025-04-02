@@ -224,12 +224,16 @@ class MessagingService : FirebaseMessagingService() {
 
             fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
                 val largeIcon = if (roomName != data.sender.name) {
+                    Log.d(LOGTAG, "Using room avatar for group message")
                     // Use room avatar for group messages
                     roomAvatarBitmap ?: (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
                 } else {
+                    Log.d(LOGTAG, "Using sender avatar for direct message")
                     // Use sender avatar for direct messages
                     (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
                 }
+
+                Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
 
                 val builder = NotificationCompat.Builder(this, channelID)
                     .setSmallIcon(R.drawable.matrix)
