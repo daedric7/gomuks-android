@@ -20,6 +20,7 @@
 
     <string name="notification_channel_silent">Notificações silenciosas</string>
     <string name="notification_channel_noisy">Notificações barulhentas</string>
+    <string name="notification_channel_group">Notificações de grupo</string>
 
     <!-- BasicGeckoViewPrompt strings -->
     <string name="username">Nome de utilizador</string>
