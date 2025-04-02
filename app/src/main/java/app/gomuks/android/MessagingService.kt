@@ -95,41 +95,16 @@ class MessagingService : FirebaseMessagingService() {
         }
         data.messages?.forEach {
             data.imageAuth?.let { imageAuth ->
-                showMessageNotification(it, imageAuth)
+                // Pass roomName and roomAvatar from the message to showMessageNotification
+                showMessageNotification(it, imageAuth, it.roomName, it.roomAvatar)
             }
         }
     }
 
-    private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
-        // Retrieve the server URL from shared preferences
-        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
-
-        // Generate the full avatar URL for the sender
-        val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
-            val baseURL = if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
-                "$serverURL${data.avatar}"
-            } else {
-                "$serverURL/${data.avatar}"
-            }
-            "$baseURL?encrypted=false&image_auth=$imageAuth"
-        } else {
-            null
-        }
-
-        // Log the entire content of data
-        Log.d(LOGTAG, "PushUser data: $data")
-        Log.d(LOGTAG, "Avatar URL: $avatarURL")
-
-        // Continue building the Person object
-        val personBuilder = Person.Builder()
-            .setKey(data.id)
-            .setName(data.name)
-            .setUri("matrix:u/${data.id.substring(1)}")
-
-        if (!avatarURL.isNullOrEmpty()) {
+    private fun fetchAvatar(url: String?, context: Context, callback: (Bitmap?) -> Unit) {
+        if (!url.isNullOrEmpty()) {
             val glideUrl = GlideUrl(
-                avatarURL,
+                url,
                 LazyHeaders.Builder()
                     .addHeader("Sec-Fetch-Site", "cross-site")
                     .addHeader("Sec-Fetch-Mode", "no-cors")
@@ -145,35 +120,73 @@ class MessagingService : FirebaseMessagingService() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                         // Convert the bitmap to a circular bitmap
                         val circularBitmap = getCircularBitmap(resource)
-                        personBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
-                        callback(personBuilder.build())
+                        callback(circularBitmap)
                     }
 
                     override fun onLoadCleared(placeholder: Drawable?) {
                         // Handle cleanup if necessary
-                        callback(personBuilder.build())
+                        callback(null)
                     }
 
                     override fun onLoadFailed(errorDrawable: Drawable?) {
                         super.onLoadFailed(errorDrawable)
-                        Log.e(LOGTAG, "Failed to load image from URL: $avatarURL")
-                        callback(personBuilder.build())
+                        Log.e(LOGTAG, "Failed to load image from URL: $url")
+                        callback(null)
                     }
                 })
         } else {
+            callback(null)
+        }
+    }
+
+    private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
+        // Retrieve the server URL from shared preferences
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+
+        // Generate the full avatar URL for the sender
+        val avatarURL = if (!serverURL.isNullOrEmpty() && !data.avatar.isNullOrEmpty()) {
+            val baseURL = if (serverURL.endsWith("/") || data.avatar.startsWith("/")) {
+                "$serverURL${data.avatar}"
+            } else {
+                "$serverURL/${data.avatar}"
+            }
+            "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
+        } else {
+            null
+        }
+
+        // Log the entire content of data
+        Log.d(LOGTAG, "PushUser data: $data")
+        Log.d(LOGTAG, "Avatar URL: $avatarURL")
+
+        // Continue building the Person object
+        val personBuilder = Person.Builder()
+            .setKey(data.id)
+            .setName(data.name)
+            .setUri("matrix:u/${data.id.substring(1)}")
+
+        fetchAvatar(avatarURL, context) { circularBitmap ->
+            if (circularBitmap != null) {
+                personBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
+            }
+            // Build the Person object and invoke the callback
             callback(personBuilder.build())
         }
     }
 
-    private fun showMessageNotification(data: PushMessage, imageAuth: String) {
+    private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
 
+            val isGroupMessage = roomName != data.sender.name
+
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
                 NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
-                .setConversationTitle(if (data.roomName != data.sender.name) data.roomName else null)
+                .setConversationTitle(if (isGroupMessage) roomName else null)
+                .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
                 .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
 
             val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
@@ -196,32 +209,60 @@ class MessagingService : FirebaseMessagingService() {
             )
 
             // Create or update the conversation shortcut
-            createOrUpdateChatShortcut(this, data.roomID, data.roomName ?: data.sender.name, sender)
+            createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 
-            // Retrieve the bitmap for the sender's icon
-            val senderIconBitmap = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
-            val circularBitmap = senderIconBitmap?.let { getCircularBitmap(it) } // Convert to circular bitmap if not null
-            Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
-
-            val builder = NotificationCompat.Builder(this, channelID)
-                .setSmallIcon(R.drawable.matrix)
-                .setStyle(messagingStyle)
-                .setWhen(data.timestamp)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .setShortcutId(data.roomID)  // Associate the notification with the conversation
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setLargeIcon(circularBitmap)  // Set the circular large icon
-
-            with(NotificationManagerCompat.from(this@MessagingService)) {
-                if (ActivityCompat.checkSelfPermission(
-                        this@MessagingService,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    return@with
+            // Retrieve the avatar for the room if it's a group message
+            val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+            val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+            val roomAvatarURL = if (!serverURL.isNullOrEmpty() && !roomAvatar.isNullOrEmpty()) {
+                val baseURL = if (serverURL.endsWith("/") || roomAvatar.startsWith("/")) {
+                    "$serverURL${roomAvatar}"
+                } else {
+                    "$serverURL/${roomAvatar}"
                 }
-                notify(notifID.hashCode(), builder.build())
+                "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
+            } else {
+                null
+            }
+
+            Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
+
+            fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
+                val largeIcon = if (isGroupMessage) {
+                    Log.d(LOGTAG, "Using room avatar for group message")
+                    // Use room avatar for group messages
+                    roomAvatarBitmap ?: run {
+                        Log.d(LOGTAG, "Room avatar is null, falling back to sender avatar")
+                        (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+                    }
+                } else {
+                    Log.d(LOGTAG, "Using sender avatar for direct message")
+                    // Use sender avatar for direct messages
+                    (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+                }
+
+                Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
+
+                val builder = NotificationCompat.Builder(this, channelID)
+                    .setSmallIcon(R.drawable.matrix)
+                    .setStyle(messagingStyle)
+                    .setWhen(data.timestamp)
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+                    .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .setLargeIcon(largeIcon)  // Set the large icon
+
+                with(NotificationManagerCompat.from(this@MessagingService)) {
+                    if (ActivityCompat.checkSelfPermission(
+                            this@MessagingService,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        return@with
+                    }
+                    notify(notifID.hashCode(), builder.build())
+                }
             }
         }
     }
