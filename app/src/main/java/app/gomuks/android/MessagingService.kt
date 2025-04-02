@@ -231,7 +231,10 @@ class MessagingService : FirebaseMessagingService() {
                 val largeIcon = if (isGroupMessage) {
                     Log.d(LOGTAG, "Using room avatar for group message")
                     // Use room avatar for group messages
-                    roomAvatarBitmap ?: (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+                    roomAvatarBitmap ?: run {
+                        Log.d(LOGTAG, "Room avatar is null, falling back to sender avatar")
+                        (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+                    }
                 } else {
                     Log.d(LOGTAG, "Using sender avatar for direct message")
                     // Use sender avatar for direct messages
