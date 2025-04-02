@@ -151,7 +151,7 @@ class MessagingService : FirebaseMessagingService() {
             } else {
                 "$serverURL/${data.avatar}"
             }
-            "$baseURL?encrypted=false&image_auth=$imageAuth"
+            "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
         } else {
             null
         }
@@ -217,7 +217,7 @@ class MessagingService : FirebaseMessagingService() {
                 } else {
                     "$serverURL/${roomAvatar}"
                 }
-                "$baseURL?encrypted=false&image_auth=$imageAuth"
+                "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
             } else {
                 null
             }
@@ -225,7 +225,8 @@ class MessagingService : FirebaseMessagingService() {
             Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
 
             fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
-                val largeIcon = if (roomName != data.sender.name) {
+                val isGroupMessage = roomName != data.sender.name
+                val largeIcon = if (isGroupMessage) {
                     Log.d(LOGTAG, "Using room avatar for group message")
                     // Use room avatar for group messages
                     roomAvatarBitmap ?: (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
@@ -246,6 +247,10 @@ class MessagingService : FirebaseMessagingService() {
                     .setShortcutId(data.roomID)  // Associate the notification with the conversation
                     .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                     .setLargeIcon(largeIcon)  // Set the large icon
+
+                if (isGroupMessage) {
+                    builder.setGroupConversation(true) // Indicate it's a group conversation
+                }
 
                 with(NotificationManagerCompat.from(this@MessagingService)) {
                     if (ActivityCompat.checkSelfPermission(
