@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Shader.TileMode // Correct import for TileMode
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
@@ -232,7 +233,7 @@ class MessagingService : FirebaseMessagingService() {
         val canvas = Canvas(output)
 
         val paint = Paint()
-        val shader = BitmapShader(bitmap, BitmapShader.TileMode.CLAMP, BitmapShader.TileMode.CLAMP)
+        val shader = BitmapShader(bitmap, TileMode.CLAMP, TileMode.CLAMP)
         paint.shader = shader
         paint.isAntiAlias = true
 
