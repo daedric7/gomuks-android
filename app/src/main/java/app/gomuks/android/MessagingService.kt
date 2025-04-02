@@ -222,6 +222,8 @@ class MessagingService : FirebaseMessagingService() {
                 null
             }
 
+            Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
+
             fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
                 val largeIcon = if (roomName != data.sender.name) {
                     Log.d(LOGTAG, "Using room avatar for group message")
