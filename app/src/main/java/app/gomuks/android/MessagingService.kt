@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -32,6 +33,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.io.File
+import java.io.FileOutputStream
 
 // For conversations API
 import android.content.pm.ShortcutInfo
@@ -101,42 +104,75 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun fetchAvatar(url: String?, context: Context, callback: (Bitmap?) -> Unit) {
-        if (!url.isNullOrEmpty()) {
-            val glideUrl = GlideUrl(
-                url,
-                LazyHeaders.Builder()
-                    .addHeader("Sec-Fetch-Site", "cross-site")
-                    .addHeader("Sec-Fetch-Mode", "no-cors")
-                    .addHeader("Sec-Fetch-Dest", "image")
-                    .build()
-            )
-
-            Glide.with(context)
-                .asBitmap()
-                .load(glideUrl)
-                .error(R.drawable.ic_chat) // Add an error placeholder
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        // Convert the bitmap to a circular bitmap
-                        val circularBitmap = getCircularBitmap(resource)
-                        callback(circularBitmap)
-                    }
-
-                    override fun onLoadCleared(placeholder: Drawable?) {
-                        // Handle cleanup if necessary
-                        callback(null)
-                    }
-
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        super.onLoadFailed(errorDrawable)
-                        Log.e(LOGTAG, "Failed to load image from URL: $url")
-                        callback(null)
-                    }
-                })
-        } else {
-            callback(null)
+    private fun getCacheFile(context: Context, url: String): File {
+        val cacheDir = File(context.cacheDir, "avatar_cache")
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
         }
+        return File(cacheDir, url.hashCode().toString())
+    }
+
+    private fun isAvatarInCache(context: Context, url: String): Boolean {
+        val cacheFile = getCacheFile(context, url)
+        return cacheFile.exists()
+    }
+
+    private fun getAvatarFromCache(context: Context, url: String): Bitmap? {
+        val cacheFile = getCacheFile(context, url)
+        return if (cacheFile.exists()) {
+            BitmapFactory.decodeFile(cacheFile.absolutePath)
+        } else {
+            null
+        }
+    }
+
+    private fun saveAvatarToCache(context: Context, url: String, bitmap: Bitmap) {
+        val cacheFile = getCacheFile(context, url)
+        FileOutputStream(cacheFile).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+    }
+
+    private fun fetchAvatar(url: String, imageAuth: String, context: Context, callback: (Bitmap?) -> Unit) {
+        val cacheKey = url.split("?")[0] // Use URL without query parameters as cache key
+        if (isAvatarInCache(context, cacheKey)) {
+            Log.d(LOGTAG, "Avatar found in cache: $cacheKey")
+            callback(getAvatarFromCache(context, cacheKey))
+            return
+        }
+
+        val glideUrl = GlideUrl(
+            "$url&image_auth=$imageAuth",
+            LazyHeaders.Builder()
+                .addHeader("Sec-Fetch-Site", "cross-site")
+                .addHeader("Sec-Fetch-Mode", "no-cors")
+                .addHeader("Sec-Fetch-Dest", "image")
+                .build()
+        )
+
+        Glide.with(context)
+            .asBitmap()
+            .load(glideUrl)
+            .error(R.drawable.ic_chat) // Add an error placeholder
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    // Convert the bitmap to a circular bitmap
+                    val circularBitmap = getCircularBitmap(resource)
+                    saveAvatarToCache(context, cacheKey, circularBitmap)
+                    callback(circularBitmap)
+                }
+
+                override fun onLoadCleared(placeholder: Drawable?) {
+                    // Handle cleanup if necessary
+                    callback(null)
+                }
+
+                override fun onLoadFailed(errorDrawable: Drawable?) {
+                    super.onLoadFailed(errorDrawable)
+                    Log.e(LOGTAG, "Failed to load image from URL: $url")
+                    callback(null)
+                }
+            })
     }
 
     private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
@@ -151,7 +187,7 @@ class MessagingService : FirebaseMessagingService() {
             } else {
                 "$serverURL/${data.avatar}"
             }
-            "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
+            "$baseURL?encrypted=false&image_auth=$imageAuth"
         } else {
             null
         }
@@ -166,11 +202,16 @@ class MessagingService : FirebaseMessagingService() {
             .setName(data.name)
             .setUri("matrix:u/${data.id.substring(1)}")
 
-        fetchAvatar(avatarURL, context) { circularBitmap ->
-            if (circularBitmap != null) {
-                personBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
+        if (avatarURL != null) {
+            fetchAvatar(avatarURL, imageAuth, context) { circularBitmap ->
+                if (circularBitmap != null) {
+                    personBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
+                }
+                // Build the Person object and invoke the callback
+                callback(personBuilder.build())
             }
-            // Build the Person object and invoke the callback
+        } else {
+            // Build the Person object and invoke the callback without an icon
             callback(personBuilder.build())
         }
     }
@@ -227,19 +268,38 @@ class MessagingService : FirebaseMessagingService() {
 
             Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
 
-            fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
-                val largeIcon = if (isGroupMessage) {
-                    Log.d(LOGTAG, "Using room avatar for group message")
-                    // Use room avatar for group messages
-                    roomAvatarBitmap ?: run {
+            if (isGroupMessage && roomAvatarURL != null) {
+                fetchAvatar(roomAvatarURL, imageAuth, this) { roomAvatarBitmap ->
+                    val largeIcon = roomAvatarBitmap ?: run {
                         Log.d(LOGTAG, "Room avatar is null, falling back to sender avatar")
                         (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
                     }
-                } else {
-                    Log.d(LOGTAG, "Using sender avatar for direct message")
-                    // Use sender avatar for direct messages
-                    (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+
+                    Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
+
+                    val builder = NotificationCompat.Builder(this, channelID)
+                        .setSmallIcon(R.drawable.matrix)
+                        .setStyle(messagingStyle)
+                        .setWhen(data.timestamp)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
+                        .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                        .setLargeIcon(largeIcon)  // Set the large icon
+
+                    with(NotificationManagerCompat.from(this@MessagingService)) {
+                        if (ActivityCompat.checkSelfPermission(
+                                this@MessagingService,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            return@with
+                        }
+                        notify(notifID.hashCode(), builder.build())
+                    }
                 }
+            } else {
+                val largeIcon = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
 
                 Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
 
