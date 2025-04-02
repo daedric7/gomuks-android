@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
@@ -139,7 +142,9 @@ class MessagingService : FirebaseMessagingService() {
                 .error(R.drawable.ic_chat) // Add an error placeholder
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        personBuilder.setIcon(IconCompat.createWithBitmap(resource))
+                        // Convert the bitmap to a circular bitmap
+                        val circularBitmap = getCircularBitmap(resource)
+                        personBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
                         callback(personBuilder.build())
                     }
 
@@ -194,6 +199,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Retrieve the bitmap for the sender's icon
             val senderIconBitmap = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+            val circularBitmap = senderIconBitmap?.let { getCircularBitmap(it) } // Convert to circular bitmap if not null
             Log.d(LOGTAG, "Sender Icon Bitmap: $senderIconBitmap")
 
             val builder = NotificationCompat.Builder(this, channelID)
@@ -204,7 +210,7 @@ class MessagingService : FirebaseMessagingService() {
                 .setContentIntent(pendingIntent)
                 .setShortcutId(data.roomID)  // Associate the notification with the conversation
                 .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setLargeIcon(senderIconBitmap)  // Set the large icon
+                .setLargeIcon(circularBitmap)  // Set the circular large icon
 
             with(NotificationManagerCompat.from(this@MessagingService)) {
                 if (ActivityCompat.checkSelfPermission(
@@ -217,6 +223,23 @@ class MessagingService : FirebaseMessagingService() {
                 notify(notifID.hashCode(), builder.build())
             }
         }
+    }
+
+    // Utility function to convert a bitmap to a circular bitmap
+    private fun getCircularBitmap(bitmap: Bitmap): Bitmap {
+        val size = Math.min(bitmap.width, bitmap.height)
+        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+
+        val paint = Paint()
+        val shader = BitmapShader(bitmap, BitmapShader.TileMode.CLAMP, BitmapShader.TileMode.CLAMP)
+        paint.shader = shader
+        paint.isAntiAlias = true
+
+        val radius = size / 2f
+        canvas.drawCircle(radius, radius, radius, paint)
+
+        return output
     }
 
     private fun logSharedPreferences() {
