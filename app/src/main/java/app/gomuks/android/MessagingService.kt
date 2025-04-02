@@ -230,7 +230,11 @@ class MessagingService : FirebaseMessagingService() {
                 .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
                 .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
 
-            val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
+            val channelID = if (isGroupMessage) {
+                GROUP_NOTIFICATION_CHANNEL_ID
+            } else {
+                if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
+            }
 
             val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
             Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
