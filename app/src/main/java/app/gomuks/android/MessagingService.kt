@@ -180,10 +180,13 @@ class MessagingService : FirebaseMessagingService() {
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
 
+            val isGroupMessage = roomName != data.sender.name
+
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
                 NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
-                .setConversationTitle(if (roomName != data.sender.name) roomName else null)
+                .setConversationTitle(if (isGroupMessage) roomName else null)
+                .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
                 .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
 
             val channelID = if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
@@ -225,7 +228,6 @@ class MessagingService : FirebaseMessagingService() {
             Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
 
             fetchAvatar(roomAvatarURL, this) { roomAvatarBitmap ->
-                val isGroupMessage = roomName != data.sender.name
                 val largeIcon = if (isGroupMessage) {
                     Log.d(LOGTAG, "Using room avatar for group message")
                     // Use room avatar for group messages
@@ -247,10 +249,6 @@ class MessagingService : FirebaseMessagingService() {
                     .setShortcutId(data.roomID)  // Associate the notification with the conversation
                     .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                     .setLargeIcon(largeIcon)  // Set the large icon
-
-                if (isGroupMessage) {
-                    builder.setGroupConversation(true) // Indicate it's a group conversation
-                }
 
                 with(NotificationManagerCompat.from(this@MessagingService)) {
                     if (ActivityCompat.checkSelfPermission(
