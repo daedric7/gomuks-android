@@ -11,7 +11,7 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Shader.TileMode // Correct import for TileMode
+import android.graphics.Shader.TileMode
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
@@ -216,6 +216,64 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
+    // Add a new function to build the full URL for the image
+    private fun buildImageUrl(imagePath: String): String {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+        return if (!serverURL.isNullOrEmpty()) {
+            if (serverURL.endsWith("/") || imagePath.startsWith("/")) {
+                "$serverURL$imagePath"
+            } else {
+                "$serverURL/$imagePath"
+            }
+        } else {
+            imagePath
+        }
+    }
+
+    // Add a function to fetch the image with retry logic
+    private fun fetchImageWithRetry(url: String, imageAuth: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
+        var attempts = 0
+        fun attemptFetch() {
+            Log.d(LOGTAG, "Attempting to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log attempt
+            val glideUrl = GlideUrl(
+                "$url&image_auth=$imageAuth",
+                LazyHeaders.Builder() // Add the necessary headers and image_auth
+                    .addHeader("Sec-Fetch-Site", "cross-site")
+                    .addHeader("Sec-Fetch-Mode", "no-cors")
+                    .addHeader("Sec-Fetch-Dest", "image")
+                    .build()
+            )
+            Glide.with(this)
+                .asBitmap()
+                .load(glideUrl)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        Log.d(LOGTAG, "Image fetched successfully from URL: $url") // Log success
+                        callback(resource)
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
+                        callback(null)
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        if (attempts < retries) {
+                            attempts++
+                            Log.d(LOGTAG, "Retrying to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log retry
+                            attemptFetch()
+                        } else {
+                            Log.e(LOGTAG, "Failed to fetch image from URL after $retries attempts: $url") // Log failure
+                            callback(null)
+                        }
+                    }
+                })
+        }
+        attemptFetch()
+    }
+
+    // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -256,78 +314,89 @@ class MessagingService : FirebaseMessagingService() {
             // Create or update the conversation shortcut
             createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 
-            // Retrieve the avatar for the room if it's a group message
-            val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-            val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
-            val roomAvatarURL = if (!serverURL.isNullOrEmpty() && !roomAvatar.isNullOrEmpty()) {
-                val baseURL = if (serverURL.endsWith("/") || roomAvatar.startsWith("/")) {
-                    "$serverURL${roomAvatar}"
-                } else {
-                    "$serverURL/${roomAvatar}"
-                }
-                "$baseURL?encrypted=false&image_auth=$imageAuth" // Corrected URL
-            } else {
-                null
-            }
+            // Fetch the image if available
+            if (!data.image.isNullOrEmpty()) {
+                val imageUrl = buildImageUrl(data.image)
+                fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
+                    if (bitmap != null) {
+                        Log.i(LOGTAG, "Using image in notification") // Log image usage
 
-            Log.d(LOGTAG, "Room Avatar URL: $roomAvatarURL")
+                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                            .bigPicture(bitmap) // Set the image bitmap
+                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
+                            .setSummaryText(data.text) // Set the summary text with data.text
 
-            if (isGroupMessage && roomAvatarURL != null) {
-                fetchAvatar(roomAvatarURL, imageAuth, this) { roomAvatarBitmap ->
-                    val largeIcon = roomAvatarBitmap ?: run {
-                        Log.d(LOGTAG, "Room avatar is null, falling back to sender avatar")
-                        (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
-                    }
+                        val builder = NotificationCompat.Builder(this, channelID)
+                            .setSmallIcon(R.drawable.matrix)
+                            .setStyle(bigPictureStyle)
+                            .setContentTitle(if (isGroupMessage) roomName else data.sender.name) // Set the content title
+                            .setContentText(data.text) // Set the content text
+                            .setWhen(data.timestamp)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                            .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
 
-                    Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
-
-                    val builder = NotificationCompat.Builder(this, channelID)
-                        .setSmallIcon(R.drawable.matrix)
-                        .setStyle(messagingStyle)
-                        .setWhen(data.timestamp)
-                        .setAutoCancel(true)
-                        .setContentIntent(pendingIntent)
-                        .setShortcutId(data.roomID)  // Associate the notification with the conversation
-                        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                        .setLargeIcon(largeIcon)  // Set the large icon
-
-                    with(NotificationManagerCompat.from(this@MessagingService)) {
-                        if (ActivityCompat.checkSelfPermission(
-                                this@MessagingService,
-                                Manifest.permission.POST_NOTIFICATIONS
-                            ) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            return@with
+                        with(NotificationManagerCompat.from(this@MessagingService)) {
+                            if (ActivityCompat.checkSelfPermission(
+                                    this@MessagingService,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                return@with
+                            }
+                            notify(notifID.hashCode(), builder.build())
                         }
-                        notify(notifID.hashCode(), builder.build())
+                    } else {
+                        // Fallback to the default behavior if the image couldn't be fetched
+                        showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
                     }
                 }
             } else {
-                val largeIcon = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
-
-                Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
-
-                val builder = NotificationCompat.Builder(this, channelID)
-                    .setSmallIcon(R.drawable.matrix)
-                    .setStyle(messagingStyle)
-                    .setWhen(data.timestamp)
-                    .setAutoCancel(true)
-                    .setContentIntent(pendingIntent)
-                    .setShortcutId(data.roomID)  // Associate the notification with the conversation
-                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                    .setLargeIcon(largeIcon)  // Set the large icon
-
-                with(NotificationManagerCompat.from(this@MessagingService)) {
-                    if (ActivityCompat.checkSelfPermission(
-                            this@MessagingService,
-                            Manifest.permission.POST_NOTIFICATIONS
-                        ) != PackageManager.PERMISSION_GRANTED
-                    ) {
-                        return@with
-                    }
-                    notify(notifID.hashCode(), builder.build())
-                }
+                // Call a helper function to handle notifications without image
+                showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
             }
+        }
+    }
+
+    // Helper function to handle notifications without image
+    private fun showMessageNotificationWithoutImage(
+        data: PushMessage,
+        imageAuth: String,
+        roomName: String?,
+        roomAvatar: String?,
+        sender: Person,
+        messagingStyle: NotificationCompat.MessagingStyle,
+        channelID: String,
+        pendingIntent: PendingIntent,
+        notifID: Int
+    ) {
+        val largeIcon = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+
+        Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
+
+        val builder = NotificationCompat.Builder(this, channelID)
+            .setSmallIcon(R.drawable.matrix)
+            .setStyle(messagingStyle)
+            .setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
+            .setContentText(data.text) // Set the content text
+            .setWhen(data.timestamp)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setShortcutId(data.roomID)  // Associate the notification with the conversation
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
+
+        with(NotificationManagerCompat.from(this@MessagingService)) {
+            if (ActivityCompat.checkSelfPermission(
+                    this@MessagingService,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return@with
+            }
+            notify(notifID.hashCode(), builder.build())
         }
     }
 
