@@ -260,6 +260,13 @@ class MessagingService : FirebaseMessagingService() {
         attemptFetch()
     }
 
+    // Function to generate a thumbnail from a bitmap
+    private fun generateThumbnail(bitmap: Bitmap): Bitmap {
+        val width = 100   // Set thumbnail width
+        val height = 100  // Set thumbnail height
+        return Bitmap.createScaledBitmap(bitmap, width, height, false)
+    }
+
     // Modify the showMessageNotification function to use ImageMessageContent if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
@@ -306,22 +313,25 @@ class MessagingService : FirebaseMessagingService() {
                 val imageUrl = buildImageUrl(data.image)
                 fetchImageWithRetry(imageUrl) { bitmap ->
                     if (bitmap != null) {
-                        val imageMessageContent = NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender)
-                            .apply {
-                                setData("image/jpeg", imageUrl.toUri())
-                            }
+                        Log.i(LOGTAG, "Using image in notification") // Log image usage
 
-                        messagingStyle.addMessage(imageMessageContent)
+                        val thumbnail = generateThumbnail(bitmap) // Generate thumbnail
+
+                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                            .bigPicture(bitmap)
+                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
+                            .setSummaryText(data.text) // Set summary text
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
-                            .setStyle(messagingStyle)
+                            .setStyle(bigPictureStyle)
                             .setWhen(data.timestamp)
                             .setAutoCancel(true)
                             .setContentIntent(pendingIntent)
                             .setShortcutId(data.roomID)  // Associate the notification with the conversation
                             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
+                            .setThumbnail(thumbnail) // Set the thumbnail
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
