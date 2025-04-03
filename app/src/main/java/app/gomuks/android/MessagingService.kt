@@ -11,7 +11,7 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Shader.TileMode // Correct import for TileMode
+import android.graphics.Shader.TileMode
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
@@ -308,7 +308,7 @@ class MessagingService : FirebaseMessagingService() {
                     if (bitmap != null) {
                         val bigPictureStyle = NotificationCompat.BigPictureStyle()
                             .bigPicture(bitmap)
-                            .bigLargeIcon(null)
+                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
