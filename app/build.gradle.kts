@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -12,7 +13,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "pt.aguiarvieira.gomuks"
+        applicationId = "pt.aguiarvieira.gomuks.av"
         minSdk = 33
         targetSdk = 35
         versionCode = 1
