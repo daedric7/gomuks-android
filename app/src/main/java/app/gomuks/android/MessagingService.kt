@@ -324,10 +324,13 @@ class MessagingService : FirebaseMessagingService() {
                         val bigPictureStyle = NotificationCompat.BigPictureStyle()
                             .bigPicture(bitmap) // Set the image bitmap
                             .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
+                            .setSummaryText(data.text) // Set the summary text with data.text
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
                             .setStyle(bigPictureStyle)
+                            .setContentTitle(if (isGroupMessage) roomName else data.sender.name) // Set the content title
+                            .setContentText(data.text) // Set the content text
                             .setWhen(data.timestamp)
                             .setAutoCancel(true)
                             .setContentIntent(pendingIntent)
@@ -376,6 +379,8 @@ class MessagingService : FirebaseMessagingService() {
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
             .setStyle(messagingStyle)
+            .setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
+            .setContentText(data.text) // Set the content text
             .setWhen(data.timestamp)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
