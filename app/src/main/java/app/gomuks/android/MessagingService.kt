@@ -235,23 +235,28 @@ class MessagingService : FirebaseMessagingService() {
     private fun fetchImageWithRetry(url: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
         var attempts = 0
         fun attemptFetch() {
+            Log.d(LOGTAG, "Attempting to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log attempt
             Glide.with(this)
                 .asBitmap()
                 .load(url)
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        Log.d(LOGTAG, "Image fetched successfully from URL: $url") // Log success
                         callback(resource)
                     }
 
                     override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
                         callback(null)
                     }
 
                     override fun onLoadFailed(errorDrawable: Drawable?) {
                         if (attempts < retries) {
                             attempts++
+                            Log.d(LOGTAG, "Retrying to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log retry
                             attemptFetch()
                         } else {
+                            Log.e(LOGTAG, "Failed to fetch image from URL after $retries attempts: $url") // Log failure
                             callback(null)
                         }
                     }
