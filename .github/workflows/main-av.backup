@@ -1,8 +1,8 @@
-name: AV Gomuks Android 
+name: AV Gomuks Android PT
 
 env:
   # The name of the main module repository
-  main_project_module: pt.aguiarvieira.gomuks
+  main_project_module: pt.aguiarvieira.gomuks.av
 
   # The name of the Play Store
   playstore_name: Gomuks
