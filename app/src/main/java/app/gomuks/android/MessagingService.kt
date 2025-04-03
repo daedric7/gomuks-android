@@ -260,7 +260,7 @@ class MessagingService : FirebaseMessagingService() {
         attemptFetch()
     }
 
-    // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
+    // Modify the showMessageNotification function to use ImageMessageContent if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -306,13 +306,16 @@ class MessagingService : FirebaseMessagingService() {
                 val imageUrl = buildImageUrl(data.image)
                 fetchImageWithRetry(imageUrl) { bitmap ->
                     if (bitmap != null) {
-                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
-                            .bigPicture(bitmap)
-                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
+                        val imageMessageContent = NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender)
+                            .apply {
+                                setData("image/jpeg", imageUrl.toUri())
+                            }
+
+                        messagingStyle.addMessage(imageMessageContent)
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
-                            .setStyle(bigPictureStyle)
+                            .setStyle(messagingStyle)
                             .setWhen(data.timestamp)
                             .setAutoCancel(true)
                             .setContentIntent(pendingIntent)
