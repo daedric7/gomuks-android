@@ -232,13 +232,21 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     // Add a function to fetch the image with retry logic
-    private fun fetchImageWithRetry(url: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
+    private fun fetchImageWithRetry(url: String, imageAuth: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
         var attempts = 0
         fun attemptFetch() {
             Log.d(LOGTAG, "Attempting to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log attempt
+            val glideUrl = GlideUrl(
+                "$url&image_auth=$imageAuth",
+                LazyHeaders.Builder() // Add the necessary headers and image_auth
+                    .addHeader("Sec-Fetch-Site", "cross-site")
+                    .addHeader("Sec-Fetch-Mode", "no-cors")
+                    .addHeader("Sec-Fetch-Dest", "image")
+                    .build()
+            )
             Glide.with(this)
                 .asBitmap()
-                .load(url)
+                .load(glideUrl)
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                         Log.d(LOGTAG, "Image fetched successfully from URL: $url") // Log success
@@ -309,7 +317,7 @@ class MessagingService : FirebaseMessagingService() {
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
                 val imageUrl = buildImageUrl(data.image)
-                fetchImageWithRetry(imageUrl) { bitmap ->
+                fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
                     if (bitmap != null) {
                         Log.i(LOGTAG, "Using image in notification") // Log image usage
 
