@@ -310,7 +310,7 @@ class MessagingService : FirebaseMessagingService() {
 
                         val bigPictureStyle = NotificationCompat.BigPictureStyle()
                             .bigPicture(bitmap) // Set the image bitmap
-                            .bigLargeIcon(null) // Set bigLargeIcon to null
+                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
