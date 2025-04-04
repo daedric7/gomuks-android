@@ -26,6 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set App ID
+        run: echo "APP_ID=pt.aguiarvieira.gomuks.av" >> $GITHUB_ENV      
+
       - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
