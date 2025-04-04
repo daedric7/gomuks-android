@@ -281,12 +281,19 @@ class MessagingService : FirebaseMessagingService() {
 
             val isGroupMessage = roomName != data.sender.name
 
+            // Adjust the text field based on reply or mention flags
+            val adjustedText = when {
+                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
+                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
+                else -> data.text
+            }
+
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
                 NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
                 .setConversationTitle(if (isGroupMessage) roomName else null)
                 .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
-                .addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender))
+                .addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
 
             val channelID = if (isGroupMessage) {
                 GROUP_NOTIFICATION_CHANNEL_ID
@@ -324,13 +331,13 @@ class MessagingService : FirebaseMessagingService() {
                         val bigPictureStyle = NotificationCompat.BigPictureStyle()
                             .bigPicture(bitmap) // Set the image bitmap
                             .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
-                            .setSummaryText(data.text) // Set the summary text with data.text
+                            .setSummaryText(adjustedText) // Set the summary text with adjustedText
 
                         val builder = NotificationCompat.Builder(this, channelID)
                             .setSmallIcon(R.drawable.matrix)
                             .setStyle(bigPictureStyle)
                             .setContentTitle(if (isGroupMessage) roomName else data.sender.name) // Set the content title
-                            .setContentText(data.text) // Set the content text
+                            .setContentText(adjustedText) // Set the content text
                             .setWhen(data.timestamp)
                             .setAutoCancel(true)
                             .setContentIntent(pendingIntent)
