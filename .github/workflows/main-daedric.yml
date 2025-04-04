@@ -1,4 +1,4 @@
-name: AV Gomuks Android 
+name: Gomuks Android 
 
 env:
   # The name of the main module repository
@@ -24,6 +24,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set App ID
+        run: echo "APP_ID=pt.aguiarvieira.gomuks" >> $GITHUB_ENV
 
       - name: Set Up JDK
         uses: actions/setup-java@v4
