@@ -12,7 +12,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "pt.aguiarvieira.gomuks"
+        applicationId = System.getenv("APP_ID") ?: "pt.aguiarvieira.gomuks.xxx"
         minSdk = 33
         targetSdk = 35
         versionCode = 1
