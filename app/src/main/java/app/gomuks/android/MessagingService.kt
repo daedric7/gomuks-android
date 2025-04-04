@@ -201,7 +201,11 @@ class MessagingService : FirebaseMessagingService() {
             )
 
             // Create or update the conversation shortcut
-            createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
+	    if (isGroupMessage) {
+		createOrUpdateGroupChatShortcut(this, data.roomID, roomName, data.roomAvatar, data.imageAuth)
+	    } else {
+	    	createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
+	    }
 
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
@@ -299,6 +303,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
+    // For DMs
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
@@ -332,6 +337,41 @@ class MessagingService : FirebaseMessagingService() {
 
         shortcutManager.addDynamicShortcuts(listOf(shortcut))
     }
+
+    // For Groups
+    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String?, imageAuth: String) {
+    val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
+
+    val chatIntent = Intent(context, MainActivity::class.java).apply {
+        action = Intent.ACTION_VIEW
+        data = "matrix:roomid/${roomID.substring(1)}".toUri()
+    }
+	
+	val roomUrl = buildImageUrl(data.roomAvatar)
+
+    // Retrieve the icon from the room avatar
+    val icon = fetchAvatar(roomURL, imageAuth, context) 
+    Log.d(LOGTAG, "Room Avatar Drawable: $icon")
+
+
+    val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
+        .setShortLabel(roomName)
+        .setLongLived(true)
+        .setIntent(chatIntent)
+
+    // Set the icon if it is available
+    if (icon != null) {
+        Log.d(LOGTAG, "Setting custom icon for group shortcut")
+        shortcutBuilder.setIcon(icon)
+    } else {
+        Log.d(LOGTAG, "Setting default icon for group shortcut")
+        shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
+    }
+
+    val shortcut = shortcutBuilder.build()
+
+    shortcutManager.addDynamicShortcuts(listOf(shortcut))
+}
 	
 	// Helper functions
 	
