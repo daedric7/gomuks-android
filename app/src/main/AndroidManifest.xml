@@ -70,6 +70,8 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <receiver android:name=".NotificationDismissReceiver" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
