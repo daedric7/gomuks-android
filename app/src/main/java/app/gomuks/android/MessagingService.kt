@@ -161,6 +161,11 @@ class MessagingService : FirebaseMessagingService() {
                 data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
                 else -> data.text
             }
+	    // Create a PendingIntent for the dismiss action
+		val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
+		    putExtra("notification_id", notifID)
+		}
+		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
             val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
                 NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
@@ -218,6 +223,7 @@ class MessagingService : FirebaseMessagingService() {
                             .setShortcutId(data.roomID)  // Associate the notification with the conversation
                             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
+			    .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
@@ -268,6 +274,7 @@ class MessagingService : FirebaseMessagingService() {
             .setShortcutId(data.roomID)  // Associate the notification with the conversation
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
+	    .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 
         with(NotificationManagerCompat.from(this@MessagingService)) {
             if (ActivityCompat.checkSelfPermission(
