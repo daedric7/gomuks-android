@@ -151,7 +151,7 @@ class MessagingService : FirebaseMessagingService() {
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val notifID = data.roomID //.hashCode()
+            val notifID = data.roomID.hashCode()
 
             val isGroupMessage = roomName != data.sender.name
 	    if (isGroupMessage) { 
