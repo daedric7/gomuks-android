@@ -63,14 +63,14 @@ class MessagingService : FirebaseMessagingService() {
             putString(getString(R.string.push_token_key), token)
             apply()
         }
-        logSharedPreferences()
+        //logSharedPreferences()
         CoroutineScope(Dispatchers.IO).launch {
             tokenFlow.emit(token)
         }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        logSharedPreferences()
+        //logSharedPreferences()
         val pushEncKey = getExistingPushEncryptionKey(this)
         if (pushEncKey == null) {
             Log.e(LOGTAG, "No push encryption key found to handle $message")
@@ -154,6 +154,9 @@ class MessagingService : FirebaseMessagingService() {
             val notifID = data.roomID.hashCode()
 
             val isGroupMessage = roomName != data.sender.name
+	    if (isGroupMessage) { 
+		    Log.i(LOGTAG, "This is a group message")
+	    }
 
             // Adjust the text field based on reply or mention flags
             val adjustedText = when {
@@ -237,11 +240,13 @@ class MessagingService : FirebaseMessagingService() {
                         }
                     } else {
                         // Fallback to the default behavior if the image couldn't be fetched
+			Log.i(LOGTAG, "Fallback: Image could not be fetched")
                         showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
                     }
                 }
             } else {
                 // Call a helper function to handle notifications without image
+		Log.i(LOGTAG, "Sending notification without image")
                 showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
             }
         }
