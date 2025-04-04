@@ -339,7 +339,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     // For Groups
-    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String?, imageAuth: String) {
+    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String?, roomAvatar: String?, imageAuth: String) {
     val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
     val chatIntent = Intent(context, MainActivity::class.java).apply {
@@ -347,10 +347,10 @@ class MessagingService : FirebaseMessagingService() {
         data = "matrix:roomid/${roomID.substring(1)}".toUri()
     }
 	
-	val roomUrl = buildImageUrl(data.roomAvatar)
+    val roomUrl = roomAvatar?.let { buildImageUrl(it) }
 
     // Retrieve the icon from the room avatar
-    val icon = fetchAvatar(roomURL, imageAuth, context) 
+    val icon = roomUrl?.let { fetchAvatar(it, imageAuth, context) }
     Log.d(LOGTAG, "Room Avatar Drawable: $icon")
 
 
