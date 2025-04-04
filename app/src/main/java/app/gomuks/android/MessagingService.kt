@@ -104,77 +104,6 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun getCacheFile(context: Context, url: String): File {
-        val cacheDir = File(context.cacheDir, "avatar_cache")
-        if (!cacheDir.exists()) {
-            cacheDir.mkdirs()
-        }
-        return File(cacheDir, url.hashCode().toString())
-    }
-
-    private fun isAvatarInCache(context: Context, url: String): Boolean {
-        val cacheFile = getCacheFile(context, url)
-        return cacheFile.exists()
-    }
-
-    private fun getAvatarFromCache(context: Context, url: String): Bitmap? {
-        val cacheFile = getCacheFile(context, url)
-        return if (cacheFile.exists()) {
-            BitmapFactory.decodeFile(cacheFile.absolutePath)
-        } else {
-            null
-        }
-    }
-
-    private fun saveAvatarToCache(context: Context, url: String, bitmap: Bitmap) {
-        val cacheFile = getCacheFile(context, url)
-        FileOutputStream(cacheFile).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-        }
-    }
-
-    private fun fetchAvatar(url: String, imageAuth: String, context: Context, callback: (Bitmap?) -> Unit) {
-        val cacheKey = url.split("?")[0] // Use URL without query parameters as cache key
-        if (isAvatarInCache(context, cacheKey)) {
-            Log.d(LOGTAG, "Avatar found in cache: $cacheKey")
-            callback(getAvatarFromCache(context, cacheKey))
-            return
-        }
-
-        val glideUrl = GlideUrl(
-            "$url&image_auth=$imageAuth",
-            LazyHeaders.Builder()
-                .addHeader("Sec-Fetch-Site", "cross-site")
-                .addHeader("Sec-Fetch-Mode", "no-cors")
-                .addHeader("Sec-Fetch-Dest", "image")
-                .build()
-        )
-
-        Glide.with(context)
-            .asBitmap()
-            .load(glideUrl)
-            .error(R.drawable.ic_chat) // Add an error placeholder
-            .into(object : CustomTarget<Bitmap>() {
-                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                    // Convert the bitmap to a circular bitmap
-                    val circularBitmap = getCircularBitmap(resource)
-                    saveAvatarToCache(context, cacheKey, circularBitmap)
-                    callback(circularBitmap)
-                }
-
-                override fun onLoadCleared(placeholder: Drawable?) {
-                    // Handle cleanup if necessary
-                    callback(null)
-                }
-
-                override fun onLoadFailed(errorDrawable: Drawable?) {
-                    super.onLoadFailed(errorDrawable)
-                    Log.e(LOGTAG, "Failed to load image from URL: $url")
-                    callback(null)
-                }
-            })
-    }
-
     private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
@@ -216,62 +145,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    // Add a new function to build the full URL for the image
-    private fun buildImageUrl(imagePath: String): String {
-        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
-        return if (!serverURL.isNullOrEmpty()) {
-            if (serverURL.endsWith("/") || imagePath.startsWith("/")) {
-                "$serverURL$imagePath"
-            } else {
-                "$serverURL/$imagePath"
-            }
-        } else {
-            imagePath
-        }
-    }
 
-    // Add a function to fetch the image with retry logic
-    private fun fetchImageWithRetry(url: String, imageAuth: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
-        var attempts = 0
-        fun attemptFetch() {
-            Log.d(LOGTAG, "Attempting to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log attempt
-            val glideUrl = GlideUrl(
-                "$url&image_auth=$imageAuth",
-                LazyHeaders.Builder() // Add the necessary headers and image_auth
-                    .addHeader("Sec-Fetch-Site", "cross-site")
-                    .addHeader("Sec-Fetch-Mode", "no-cors")
-                    .addHeader("Sec-Fetch-Dest", "image")
-                    .build()
-            )
-            Glide.with(this)
-                .asBitmap()
-                .load(glideUrl)
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        Log.d(LOGTAG, "Image fetched successfully from URL: $url") // Log success
-                        callback(resource)
-                    }
-
-                    override fun onLoadCleared(placeholder: Drawable?) {
-                        // Handle cleanup if necessary
-                        callback(null)
-                    }
-
-                    override fun onLoadFailed(errorDrawable: Drawable?) {
-                        if (attempts < retries) {
-                            attempts++
-                            Log.d(LOGTAG, "Retrying to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log retry
-                            attemptFetch()
-                        } else {
-                            Log.e(LOGTAG, "Failed to fetch image from URL after $retries attempts: $url") // Log failure
-                            callback(null)
-                        }
-                    }
-                })
-        }
-        attemptFetch()
-    }
 
     // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
@@ -407,31 +281,6 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    // Utility function to convert a bitmap to a circular bitmap
-    private fun getCircularBitmap(bitmap: Bitmap): Bitmap {
-        val size = Math.min(bitmap.width, bitmap.height)
-        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(output)
-
-        val paint = Paint()
-        val shader = BitmapShader(bitmap, TileMode.CLAMP, TileMode.CLAMP)
-        paint.shader = shader
-        paint.isAntiAlias = true
-
-        val radius = size / 2f
-        canvas.drawCircle(radius, radius, radius, paint)
-
-        return output
-    }
-
-    private fun logSharedPreferences() {
-        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        val allEntries = sharedPref.all
-        for ((key, value) in allEntries) {
-            Log.d(LOGTAG, "SharedPreferences: $key = $value")
-        }
-    }
-
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
@@ -464,5 +313,160 @@ class MessagingService : FirebaseMessagingService() {
         val shortcut = shortcutBuilder.build()
 
         shortcutManager.addDynamicShortcuts(listOf(shortcut))
+    }
+	
+	// Helper functions
+	
+    // Utility function to convert a bitmap to a circular bitmap
+    private fun getCircularBitmap(bitmap: Bitmap): Bitmap {
+        val size = Math.min(bitmap.width, bitmap.height)
+        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+
+        val paint = Paint()
+        val shader = BitmapShader(bitmap, TileMode.CLAMP, TileMode.CLAMP)
+        paint.shader = shader
+        paint.isAntiAlias = true
+
+        val radius = size / 2f
+        canvas.drawCircle(radius, radius, radius, paint)
+
+        return output
+    }
+
+    private fun logSharedPreferences() {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val allEntries = sharedPref.all
+        for ((key, value) in allEntries) {
+            Log.d(LOGTAG, "SharedPreferences: $key = $value")
+        }
+    }
+	
+    // Add a new function to build the full URL for the image
+    private fun buildImageUrl(imagePath: String): String {
+        val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
+        return if (!serverURL.isNullOrEmpty()) {
+            if (serverURL.endsWith("/") || imagePath.startsWith("/")) {
+                "$serverURL$imagePath"
+            } else {
+                "$serverURL/$imagePath"
+            }
+        } else {
+            imagePath
+        }
+    }
+
+    // Add a function to fetch the image with retry logic
+    private fun fetchImageWithRetry(url: String, imageAuth: String, retries: Int = 3, callback: (Bitmap?) -> Unit) {
+        var attempts = 0
+        fun attemptFetch() {
+            Log.d(LOGTAG, "Attempting to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log attempt
+            val glideUrl = GlideUrl(
+                "$url&image_auth=$imageAuth",
+                LazyHeaders.Builder() // Add the necessary headers and image_auth
+                    .addHeader("Sec-Fetch-Site", "cross-site")
+                    .addHeader("Sec-Fetch-Mode", "no-cors")
+                    .addHeader("Sec-Fetch-Dest", "image")
+                    .build()
+            )
+            Glide.with(this)
+                .asBitmap()
+                .load(glideUrl)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        Log.d(LOGTAG, "Image fetched successfully from URL: $url") // Log success
+                        callback(resource)
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle cleanup if necessary
+                        callback(null)
+                    }
+
+                    override fun onLoadFailed(errorDrawable: Drawable?) {
+                        if (attempts < retries) {
+                            attempts++
+                            Log.d(LOGTAG, "Retrying to fetch image from URL: $url, Attempt: ${attempts + 1}") // Log retry
+                            attemptFetch()
+                        } else {
+                            Log.e(LOGTAG, "Failed to fetch image from URL after $retries attempts: $url") // Log failure
+                            callback(null)
+                        }
+                    }
+                })
+        }
+        attemptFetch()
+    }
+	
+	private fun getCacheFile(context: Context, url: String): File {
+        val cacheDir = File(context.cacheDir, "avatar_cache")
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
+        }
+        return File(cacheDir, url.hashCode().toString())
+    }
+
+    private fun isAvatarInCache(context: Context, url: String): Boolean {
+        val cacheFile = getCacheFile(context, url)
+        return cacheFile.exists()
+    }
+
+    private fun getAvatarFromCache(context: Context, url: String): Bitmap? {
+        val cacheFile = getCacheFile(context, url)
+        return if (cacheFile.exists()) {
+            BitmapFactory.decodeFile(cacheFile.absolutePath)
+        } else {
+            null
+        }
+    }
+
+    private fun saveAvatarToCache(context: Context, url: String, bitmap: Bitmap) {
+        val cacheFile = getCacheFile(context, url)
+        FileOutputStream(cacheFile).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+    }
+
+    private fun fetchAvatar(url: String, imageAuth: String, context: Context, callback: (Bitmap?) -> Unit) {
+        val cacheKey = url.split("?")[0] // Use URL without query parameters as cache key
+        if (isAvatarInCache(context, cacheKey)) {
+            Log.d(LOGTAG, "Avatar found in cache: $cacheKey")
+            callback(getAvatarFromCache(context, cacheKey))
+            return
+        }
+
+        val glideUrl = GlideUrl(
+            "$url&image_auth=$imageAuth",
+            LazyHeaders.Builder()
+                .addHeader("Sec-Fetch-Site", "cross-site")
+                .addHeader("Sec-Fetch-Mode", "no-cors")
+                .addHeader("Sec-Fetch-Dest", "image")
+                .build()
+        )
+
+        Glide.with(context)
+            .asBitmap()
+            .load(glideUrl)
+            .error(R.drawable.ic_chat) // Add an error placeholder
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    // Convert the bitmap to a circular bitmap
+                    val circularBitmap = getCircularBitmap(resource)
+                    saveAvatarToCache(context, cacheKey, circularBitmap)
+                    callback(circularBitmap)
+                }
+
+                override fun onLoadCleared(placeholder: Drawable?) {
+                    // Handle cleanup if necessary
+                    callback(null)
+                }
+
+                override fun onLoadFailed(errorDrawable: Drawable?) {
+                    super.onLoadFailed(errorDrawable)
+                    Log.e(LOGTAG, "Failed to load image from URL: $url")
+                    callback(null)
+                }
+            })
     }
 }
