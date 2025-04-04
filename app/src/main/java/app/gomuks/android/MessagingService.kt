@@ -149,7 +149,7 @@ class MessagingService : FirebaseMessagingService() {
 
     // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
-        pushUserToPerson(data.sender, msgpush, imageAuth, this) { sender ->
+        pushUserToPerson(data.sender, data, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
 
