@@ -263,6 +263,12 @@ class MessagingService : FirebaseMessagingService() {
 
         Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
 
+	// Create a PendingIntent for the dismiss action
+	val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
+	    putExtra("notification_id", notifID)
+	}
+	val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+
         val builder = NotificationCompat.Builder(this, channelID)
             .setSmallIcon(R.drawable.matrix)
             .setStyle(messagingStyle)
