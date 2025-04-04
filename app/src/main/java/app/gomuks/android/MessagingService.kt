@@ -104,7 +104,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun pushUserToPerson(data: PushUser, msgpush: PushMessage, imageAuth: String, context: Context, callback: (Person) -> Unit) {
+    private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
@@ -149,7 +149,7 @@ class MessagingService : FirebaseMessagingService() {
 
     // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
-        pushUserToPerson(data.sender, data, imageAuth, this) { sender ->
+        pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             val notifID = data.roomID.hashCode()
 
@@ -202,7 +202,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Create or update the conversation shortcut
 	    if (isGroupMessage) {
-		createOrUpdateGroupChatShortcut(this, data.roomID, roomName ?: data.roomName, msgpush.roomAvatar, msgpush.imageAuth)
+		createOrUpdateGroupChatShortcut(this, data.roomID, roomName ?: data.roomName, data.roomAvatar, data.imageAuth)
 	    } else {
 	    	createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 	    }
