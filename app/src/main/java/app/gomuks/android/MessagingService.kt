@@ -54,7 +54,7 @@ class MessagingService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
-        logSharedPreferences()
+        //logSharedPreferences()
     }
 
     override fun onNewToken(token: String) {
@@ -151,7 +151,7 @@ class MessagingService : FirebaseMessagingService() {
     private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
         pushUserToPerson(data.sender, imageAuth, this) { sender ->
             val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val notifID = data.roomID.hashCode()
+            val notifID = data.roomID //.hashCode()
 
             val isGroupMessage = roomName != data.sender.name
 	    if (isGroupMessage) { 
@@ -236,7 +236,7 @@ class MessagingService : FirebaseMessagingService() {
                             ) {
                                 return@with
                             }
-                            notify(notifID.hashCode(), builder.build())
+                            notify(notifID, builder.build())
                         }
                     } else {
                         // Fallback to the default behavior if the image couldn't be fetched
