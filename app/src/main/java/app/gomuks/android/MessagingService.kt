@@ -190,6 +190,8 @@ class MessagingService : FirebaseMessagingService() {
                             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
 							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
+			    .setColor(ContextCompat.getColor(context, R.color.app_primary_color))
+			    .setColorized(true)
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
@@ -248,6 +250,8 @@ class MessagingService : FirebaseMessagingService() {
 				.setCategory(NotificationCompat.CATEGORY_MESSAGE)
 				.setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
 				.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
+				.setColor(ContextCompat.getColor(context, R.color.app_primary_color))
+				.setColorized(true)
 
 			with(NotificationManagerCompat.from(this@MessagingService)) {
 				if (ActivityCompat.checkSelfPermission(
