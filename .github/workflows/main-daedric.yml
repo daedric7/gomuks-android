@@ -27,6 +27,10 @@ jobs:
 
       - name: Set App ID
         run: echo "APP_ID=pt.aguiarvieira.gomuks" >> $GITHUB_ENV
+        
+      - name: Change app name in strings.xml
+        run: |
+          sed -i 's/Gomuks Android/Gomuks Android D/g' app/src/main/res/values/strings.xml
 
       - name: Set Up JDK
         uses: actions/setup-java@v4
