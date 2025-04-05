@@ -145,6 +145,8 @@ class MessagingService : FirebaseMessagingService() {
             val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
             Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
 
+
+
             val pendingIntent = PendingIntent.getActivity(
                 this,
                 notifID,
@@ -166,9 +168,14 @@ class MessagingService : FirebaseMessagingService() {
 				createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 			}
 	    //Bubbles
+
+	    // Create a PendingIntent for the bubble activity
+	val target = Intent(context, BubbleActivity::class.java)
+	target.putExtra("CONVERSATION_ID", notifID)
+	
 	    val bubbleIntent = PendingIntent.getActivity(
-		    context, 
-		    conversationId.hashCode(), 
+		    this, 
+		    notifID, 
 		    target, 
 		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 		)
@@ -207,8 +214,7 @@ class MessagingService : FirebaseMessagingService() {
                             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
 							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
-			    .setColor(ContextCompat.getColor(context, R.color.app_primary_color))
-			    .setColorized(true)
+
 			    .setBubbleMetadata(bubbleMetadata)
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
@@ -257,9 +263,14 @@ class MessagingService : FirebaseMessagingService() {
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
 	    //Bubbles
+
+	    // Create a PendingIntent for the bubble activity
+	val target = Intent(context, BubbleActivity::class.java)
+	target.putExtra("CONVERSATION_ID", notifID)
+	
 	    val bubbleIntent = PendingIntent.getActivity(
-		    context, 
-		    conversationId.hashCode(), 
+		    this, 
+		    notifID, 
 		    target, 
 		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 		)
@@ -286,8 +297,6 @@ class MessagingService : FirebaseMessagingService() {
 				.setCategory(NotificationCompat.CATEGORY_MESSAGE)
 				.setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
 				.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
-				.setColor(ContextCompat.getColor(context, R.color.app_primary_color))
-				.setColorized(true)
 				.setBubbleMetadata(bubbleMetadata)
 
 			with(NotificationManagerCompat.from(this@MessagingService)) {
