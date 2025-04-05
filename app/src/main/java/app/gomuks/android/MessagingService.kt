@@ -202,7 +202,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Create or update the conversation shortcut
 	    if (isGroupMessage) {
-		createOrUpdateGroupChatShortcut(this, data.roomID, roomName , data.roomAvatar, imageAuth)
+		createOrUpdateGroupChatShortcut(this, data.roomID, roomName , data.roomAvatar?, imageAuth)
 	    } else {
 	    	createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 	    }
