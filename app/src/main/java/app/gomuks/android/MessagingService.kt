@@ -352,7 +352,7 @@ class MessagingService : FirebaseMessagingService() {
         .setLongLived(true)
         .setIntent(chatIntent)
 
-    if (roomUrl != "none") {
+    if (roomAvatar != "none") {
 	    val roomUrl = buildImageUrl(roomAvatar)
 	
 	    // Retrieve the icon from the room avatar
