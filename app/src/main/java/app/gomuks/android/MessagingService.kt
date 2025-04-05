@@ -355,7 +355,7 @@ class MessagingService : FirebaseMessagingService() {
     val roomUrl = buildImageUrl(roomAvatar)
 
     // Retrieve the icon from the room avatar
-    val iconresult =  fetchAvatar(roomURL, imageAuth, context) { circularBitmap ->
+    val iconresult =  fetchAvatar(roomUrl, imageAuth, context) { circularBitmap ->
         if (circularBitmap != null) {
         	shortcutBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
         } else {
