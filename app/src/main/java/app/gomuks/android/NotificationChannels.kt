@@ -41,7 +41,6 @@ fun createNotificationChannels(context: Context) {
             .setVibrationPattern(longArrayOf(0, 500, 250, 500))  // Vibration pattern for noisy notifications
             .setLightsEnabled(true)
             .setLightColor(R.color.primary_color)
-            .setAllowBubbles(true)
             .build()
     )
 
@@ -59,7 +58,6 @@ fun createNotificationChannels(context: Context) {
             .setVibrationPattern(longArrayOf(0, 1000, 500, 1000))  // Different vibration pattern for group notifications
             .setLightsEnabled(true)
             .setLightColor(R.color.primary_color)  // Different light color for group notifications
-            .setAllowBubbles(true)
             .build()
     )
 }
