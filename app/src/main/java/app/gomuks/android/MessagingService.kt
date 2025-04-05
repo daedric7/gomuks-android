@@ -493,6 +493,7 @@ class MessagingService : FirebaseMessagingService() {
             callback(getAvatarFromCache(context, cacheKey))
             return
         }
+	Log.d(LOGTAG, "Avatar not found in cache: $cacheKey")
 
         val glideUrl = GlideUrl(
             "$url&image_auth=$imageAuth",
