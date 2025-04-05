@@ -33,7 +33,7 @@ fun createNotificationChannels(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannelCompat.Builder(
             NOISY_NOTIFICATION_CHANNEL_ID,
-            NotificationManagerCompat.IMPORTANCE_DEFAULT
+            NotificationManagerCompat.IMPORTANCE_HIGH
         )
             .setName(context.getString(R.string.notification_channel_noisy))
             .setDescription(context.getString(R.string.notification_channel_noisy))
