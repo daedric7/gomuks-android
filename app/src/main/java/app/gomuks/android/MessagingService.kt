@@ -339,7 +339,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     // For Groups
-    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String?, imageAuth: String) {
+    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String, imageAuth: String) {
     val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
     val chatIntent = Intent(context, MainActivity::class.java).apply {
@@ -351,19 +351,21 @@ class MessagingService : FirebaseMessagingService() {
         .setShortLabel(roomName)
         .setLongLived(true)
         .setIntent(chatIntent)
+
+    if (roomUrl != "none") {
+	    val roomUrl = buildImageUrl(roomAvatar)
 	
-    val roomUrl = buildImageUrl(roomAvatar)
-
-    // Retrieve the icon from the room avatar
-    val iconresult =  fetchAvatar(roomUrl, imageAuth, context) { circularBitmap ->
-        if (circularBitmap != null) {
-        	shortcutBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
-        } else {
-		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
-	}
+	    // Retrieve the icon from the room avatar
+	    val iconresult =  fetchAvatar(roomUrl, imageAuth, context) { circularBitmap ->
+	        if (circularBitmap != null) {
+	        	shortcutBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
+	        } else {
+			shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
+		}
+	    }
+	
+	    val shortcut = shortcutBuilder.build()
     }
-
-    val shortcut = shortcutBuilder.build()
 
     shortcutManager.addDynamicShortcuts(listOf(shortcut))
 }
