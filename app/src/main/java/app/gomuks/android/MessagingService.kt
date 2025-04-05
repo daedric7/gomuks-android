@@ -202,7 +202,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Create or update the conversation shortcut
 	    if (isGroupMessage) {
-		createOrUpdateGroupChatShortcut(this, data.roomID, roomName ?: data.roomName, data.roomAvatar, imageAuth)
+		createOrUpdateGroupChatShortcut(this, data.roomID, roomName , data.roomAvatar, imageAuth)
 	    } else {
 	    	createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 	    }
@@ -352,14 +352,14 @@ class MessagingService : FirebaseMessagingService() {
         .setLongLived(true)
         .setIntent(chatIntent)
 	
-    val roomUrl = roomAvatar?.let { buildImageUrl(it) }
+    val roomUrl = buildImageUrl(roomAvatar)
 
     // Retrieve the icon from the room avatar
     val iconresult =  fetchAvatar(roomURL, imageAuth, context) { circularBitmap ->
         if (circularBitmap != null) {
         	shortcutBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
         } else {
-		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
+		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
 	}
     }
 
