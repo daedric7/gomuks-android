@@ -356,6 +356,7 @@ class MessagingService : FirebaseMessagingService() {
         } else {
 		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
 	}
+    }
 
 
     val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
