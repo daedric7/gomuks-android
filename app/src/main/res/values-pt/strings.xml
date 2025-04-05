@@ -1,6 +1,4 @@
 <resources>
-    <string name="app_name">Gomuks Android AV</string>
-
     <string name="server_url">URL do Servidor</string>
     <string name="connect">Ligar</string>
     <string name="url_app_chooser_title">Que app usar para abrir o link?</string>
