@@ -346,6 +346,11 @@ class MessagingService : FirebaseMessagingService() {
         action = Intent.ACTION_VIEW
         data = "matrix:roomid/${roomID.substring(1)}".toUri()
     }
+    
+    val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
+        .setShortLabel(roomName)
+        .setLongLived(true)
+        .setIntent(chatIntent)
 	
     val roomUrl = roomAvatar?.let { buildImageUrl(it) }
 
@@ -357,12 +362,6 @@ class MessagingService : FirebaseMessagingService() {
 		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
 	}
     }
-
-
-    val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
-        .setShortLabel(roomName)
-        .setLongLived(true)
-        .setIntent(chatIntent)
 
     val shortcut = shortcutBuilder.build()
 
