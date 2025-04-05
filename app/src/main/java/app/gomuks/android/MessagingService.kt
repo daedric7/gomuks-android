@@ -364,9 +364,10 @@ class MessagingService : FirebaseMessagingService() {
 		}
 	    }
 	
-	    val shortcut = shortcutBuilder.build()
+	    
     }
 
+    val shortcut = shortcutBuilder.build()
     shortcutManager.addDynamicShortcuts(listOf(shortcut))
 }
 	
