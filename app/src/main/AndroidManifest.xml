@@ -115,6 +115,11 @@
             </intent-filter>
             -->
         </activity>
-    </application>
+        <activity
+            android:name=".BubbleActivity"
+            android:allowEmbedded="true"
+            android:documentLaunchMode="always"
+            android:resizeableActivity="true" />
+        </application>
 
 </manifest>
