@@ -350,23 +350,18 @@ class MessagingService : FirebaseMessagingService() {
     val roomUrl = roomAvatar?.let { buildImageUrl(it) }
 
     // Retrieve the icon from the room avatar
-    val icon = roomUrl?.let { fetchAvatar(it, imageAuth, context) }
-    Log.d(LOGTAG, "Room Avatar Drawable: $icon")
+    val iconresult =  fetchAvatar(roomURL, imageAuth, context) { circularBitmap ->
+        if (circularBitmap != null) {
+        	shortcutBuilder.setIcon(IconCompat.createWithBitmap(circularBitmap))
+        } else {
+		shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
+	}
 
 
     val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
         .setShortLabel(roomName)
         .setLongLived(true)
         .setIntent(chatIntent)
-
-    // Set the icon if it is available
-    if (icon != null) {
-        Log.d(LOGTAG, "Setting custom icon for group shortcut")
-        shortcutBuilder.setIcon(icon)
-    } else {
-        Log.d(LOGTAG, "Setting default icon for group shortcut")
-        shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_group_chat))
-    }
 
     val shortcut = shortcutBuilder.build()
 
