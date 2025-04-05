@@ -339,7 +339,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
     // For Groups
-    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String?, roomAvatar: String?, imageAuth: String) {
+    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String?, imageAuth: String) {
     val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
     val chatIntent = Intent(context, MainActivity::class.java).apply {
