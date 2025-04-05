@@ -165,6 +165,23 @@ class MessagingService : FirebaseMessagingService() {
 			} else {
 				createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 			}
+	    //Bubbles
+	    val bubbleIntent = PendingIntent.getActivity(
+		    context, 
+		    conversationId.hashCode(), 
+		    target, 
+		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+		)
+
+		// Create the bubble metadata using a shortcut ID
+		val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder(
+		    bubbleIntent,      // PendingIntent for the bubble activity
+		    data.roomID  // ID of an existing shortcut
+		)
+		    .setDesiredHeight(600)
+		    .setAutoExpandBubble(true)
+		    .setSuppressNotification(false)
+		    .build()
 
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
@@ -192,6 +209,7 @@ class MessagingService : FirebaseMessagingService() {
 							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 			    .setColor(ContextCompat.getColor(context, R.color.app_primary_color))
 			    .setColorized(true)
+			    .setBubbleMetadata(bubbleMetadata)
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
@@ -238,6 +256,24 @@ class MessagingService : FirebaseMessagingService() {
 		}
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
+	    //Bubbles
+	    val bubbleIntent = PendingIntent.getActivity(
+		    context, 
+		    conversationId.hashCode(), 
+		    target, 
+		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+		)
+
+		// Create the bubble metadata using a shortcut ID
+		val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder(
+		    bubbleIntent,      // PendingIntent for the bubble activity
+		    data.roomID  // ID of an existing shortcut
+		)
+		    .setDesiredHeight(600)
+		    .setAutoExpandBubble(true)
+		    .setSuppressNotification(false)
+		    .build()
+
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
 				.setStyle(messagingStyle)
@@ -252,6 +288,7 @@ class MessagingService : FirebaseMessagingService() {
 				.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 				.setColor(ContextCompat.getColor(context, R.color.app_primary_color))
 				.setColorized(true)
+				.setBubbleMetadata(bubbleMetadata)
 
 			with(NotificationManagerCompat.from(this@MessagingService)) {
 				if (ActivityCompat.checkSelfPermission(
