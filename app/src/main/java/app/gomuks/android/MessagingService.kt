@@ -167,28 +167,6 @@ class MessagingService : FirebaseMessagingService() {
 			} else {
 				createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
 			}
-	    //Bubbles
-
-	    // Create a PendingIntent for the bubble activity
-	val target = Intent(context, BubbleActivity::class.java)
-	target.putExtra("CONVERSATION_ID", notifID)
-	
-	    val bubbleIntent = PendingIntent.getActivity(
-		    this, 
-		    notifID, 
-		    target, 
-		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-		)
-
-		// Create the bubble metadata using a shortcut ID
-		val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder(
-		    bubbleIntent,      // PendingIntent for the bubble activity
-		    data.roomID  // ID of an existing shortcut
-		)
-		    .setDesiredHeight(600)
-		    .setAutoExpandBubble(true)
-		    .setSuppressNotification(false)
-		    .build()
 
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
@@ -215,7 +193,6 @@ class MessagingService : FirebaseMessagingService() {
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
 							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 
-			    .setBubbleMetadata(bubbleMetadata)
 
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
@@ -262,28 +239,6 @@ class MessagingService : FirebaseMessagingService() {
 		}
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
-	    //Bubbles
-
-	    // Create a PendingIntent for the bubble activity
-	val target = Intent(context, BubbleActivity::class.java)
-	target.putExtra("CONVERSATION_ID", notifID)
-	
-	    val bubbleIntent = PendingIntent.getActivity(
-		    this, 
-		    notifID, 
-		    target, 
-		    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-		)
-
-		// Create the bubble metadata using a shortcut ID
-		val bubbleMetadata = NotificationCompat.BubbleMetadata.Builder(
-		    bubbleIntent,      // PendingIntent for the bubble activity
-		    data.roomID  // ID of an existing shortcut
-		)
-		    .setDesiredHeight(600)
-		    .setAutoExpandBubble(true)
-		    .setSuppressNotification(false)
-		    .build()
 
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
@@ -297,7 +252,6 @@ class MessagingService : FirebaseMessagingService() {
 				.setCategory(NotificationCompat.CATEGORY_MESSAGE)
 				.setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
 				.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
-				.setBubbleMetadata(bubbleMetadata)
 
 			with(NotificationManagerCompat.from(this@MessagingService)) {
 				if (ActivityCompat.checkSelfPermission(
