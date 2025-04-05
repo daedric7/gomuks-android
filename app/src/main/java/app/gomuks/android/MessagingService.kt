@@ -54,7 +54,7 @@ class MessagingService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
-        logSharedPreferences()
+        //logSharedPreferences()
     }
 
     override fun onNewToken(token: String) {
@@ -63,14 +63,14 @@ class MessagingService : FirebaseMessagingService() {
             putString(getString(R.string.push_token_key), token)
             apply()
         }
-        logSharedPreferences()
+        //logSharedPreferences()
         CoroutineScope(Dispatchers.IO).launch {
             tokenFlow.emit(token)
         }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        logSharedPreferences()
+        //logSharedPreferences()
         val pushEncKey = getExistingPushEncryptionKey(this)
         if (pushEncKey == null) {
             Log.e(LOGTAG, "No push encryption key found to handle $message")
@@ -103,8 +103,167 @@ class MessagingService : FirebaseMessagingService() {
             }
         }
     }
+ 
+    // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
+    private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
+        pushUserToPerson(data.sender, imageAuth, this) { sender ->
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val notifID = data.roomID.hashCode()
 
-    private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
+            val isGroupMessage = roomName != data.sender.name
+			if (isGroupMessage) { 
+				Log.i(LOGTAG, "This is a group message")
+			}
+
+            // Adjust the text field based on reply or mention flags
+            val adjustedText = when {
+                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
+                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
+                else -> data.text
+            }
+			
+			// Create a PendingIntent for the dismiss action
+			val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
+				putExtra("notification_id", notifID)
+			}
+			
+			val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+
+            val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
+                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
+            } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
+                .setConversationTitle(if (isGroupMessage) roomName else null)
+                .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
+                .addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+
+            val channelID = if (isGroupMessage) {
+                GROUP_NOTIFICATION_CHANNEL_ID
+            } else {
+                if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
+            }
+
+            val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
+            Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
+
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                notifID,
+                Intent(this, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    setData(deepLinkUri)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or 
+                PendingIntent.FLAG_MUTABLE
+            )
+
+            // Create or update the conversation shortcut
+			if (isGroupMessage) {
+				createOrUpdateGroupChatShortcut(this, data.roomID, roomName ?: "NoRoomName" , data.roomAvatar ?: "none", imageAuth)
+			} else {
+				createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
+			}
+
+            // Fetch the image if available
+            if (!data.image.isNullOrEmpty()) {
+                val imageUrl = buildImageUrl(data.image)
+                fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
+                    if (bitmap != null) {
+                        Log.i(LOGTAG, "Using image in notification") // Log image usage
+
+                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                            .bigPicture(bitmap) // Set the image bitmap
+                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
+                            .setSummaryText(adjustedText) // Set the summary text with adjustedText
+
+                        val builder = NotificationCompat.Builder(this, channelID)
+                            .setSmallIcon(R.drawable.matrix)
+                            .setStyle(bigPictureStyle)
+                            .setContentTitle(if (isGroupMessage) roomName else data.sender.name) // Set the content title
+                            .setContentText(adjustedText) // Set the content text
+                            .setWhen(data.timestamp)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .setShortcutId(data.roomID)  // Associate the notification with the conversation
+                            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                            .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
+							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
+
+                        with(NotificationManagerCompat.from(this@MessagingService)) {
+                            if (ActivityCompat.checkSelfPermission(
+                                    this@MessagingService,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                return@with
+                            }
+                            notify(notifID, builder.build())
+                        }
+                    } else {
+                        // Fallback to the default behavior if the image couldn't be fetched
+						Log.i(LOGTAG, "Fallback: Image could not be fetched")
+                        showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
+                    }
+                }
+            } else {
+                // Call a helper function to handle notifications without image
+				Log.i(LOGTAG, "Sending notification without image")
+                showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
+            }
+        }
+    }
+	
+    // Helper function to handle notifications without image
+    private fun showMessageNotificationWithoutImage(
+        data: PushMessage,
+        imageAuth: String,
+        roomName: String?,
+        roomAvatar: String?,
+        sender: Person,
+        messagingStyle: NotificationCompat.MessagingStyle,
+        channelID: String,
+        pendingIntent: PendingIntent,
+        notifID: Int
+    ) {
+        val largeIcon = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
+        Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
+		
+		// Create a PendingIntent for the dismiss action
+		val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
+			putExtra("notification_id", notifID)
+		}
+		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+
+			val builder = NotificationCompat.Builder(this, channelID)
+				.setSmallIcon(R.drawable.matrix)
+				.setStyle(messagingStyle)
+				.setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
+				.setContentText(data.text) // Set the content text
+				.setWhen(data.timestamp)
+				.setAutoCancel(true)
+				.setContentIntent(pendingIntent)
+				.setShortcutId(data.roomID)  // Associate the notification with the conversation
+				.setCategory(NotificationCompat.CATEGORY_MESSAGE)
+				.setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
+				.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
+
+			with(NotificationManagerCompat.from(this@MessagingService)) {
+				if (ActivityCompat.checkSelfPermission(
+						this@MessagingService,
+						Manifest.permission.POST_NOTIFICATIONS
+					) != PackageManager.PERMISSION_GRANTED
+				) {
+					return@with
+				}
+				notify(notifID.hashCode(), builder.build())
+			}
+	}
+
+
+	
+   private fun pushUserToPerson(data: PushUser, imageAuth: String, context: Context, callback: (Person) -> Unit) {
         // Retrieve the server URL from shared preferences
         val sharedPref = getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
         val serverURL = sharedPref.getString(getString(R.string.server_url_key), "")
@@ -146,154 +305,7 @@ class MessagingService : FirebaseMessagingService() {
     }
 
 
-
-    // Modify the showMessageNotification function to use BigPictureStyle if the image field is present and not null
-    private fun showMessageNotification(data: PushMessage, imageAuth: String, roomName: String?, roomAvatar: String?) {
-        pushUserToPerson(data.sender, imageAuth, this) { sender ->
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val notifID = data.roomID.hashCode()
-
-            val isGroupMessage = roomName != data.sender.name
-
-            // Adjust the text field based on reply or mention flags
-            val adjustedText = when {
-                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
-                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> data.text
-            }
-	    // Create a PendingIntent for the dismiss action
-		val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
-		    putExtra("notification_id", notifID)
-		}
-		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
-
-            val messagingStyle = (manager.activeNotifications.lastOrNull { it.id == notifID }?.let {
-                NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it.notification)
-            } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
-                .setConversationTitle(if (isGroupMessage) roomName else null)
-                .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
-                .addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
-
-            val channelID = if (isGroupMessage) {
-                GROUP_NOTIFICATION_CHANNEL_ID
-            } else {
-                if (data.sound) NOISY_NOTIFICATION_CHANNEL_ID else SILENT_NOTIFICATION_CHANNEL_ID
-            }
-
-            val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
-            Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
-
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                notifID,
-                Intent(this, MainActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    setData(deepLinkUri)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                            Intent.FLAG_ACTIVITY_SINGLE_TOP
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or 
-                PendingIntent.FLAG_MUTABLE
-            )
-
-            // Create or update the conversation shortcut
-            createOrUpdateChatShortcut(this, data.roomID, roomName ?: data.sender.name, sender)
-
-            // Fetch the image if available
-            if (!data.image.isNullOrEmpty()) {
-                val imageUrl = buildImageUrl(data.image)
-                fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
-                    if (bitmap != null) {
-                        Log.i(LOGTAG, "Using image in notification") // Log image usage
-
-                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
-                            .bigPicture(bitmap) // Set the image bitmap
-                            .bigLargeIcon(null as Bitmap?) // Explicitly pass null as Bitmap
-                            .setSummaryText(adjustedText) // Set the summary text with adjustedText
-
-                        val builder = NotificationCompat.Builder(this, channelID)
-                            .setSmallIcon(R.drawable.matrix)
-                            .setStyle(bigPictureStyle)
-                            .setContentTitle(if (isGroupMessage) roomName else data.sender.name) // Set the content title
-                            .setContentText(adjustedText) // Set the content text
-                            .setWhen(data.timestamp)
-                            .setAutoCancel(true)
-                            .setContentIntent(pendingIntent)
-                            .setShortcutId(data.roomID)  // Associate the notification with the conversation
-                            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                            .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
-			    .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
-
-                        with(NotificationManagerCompat.from(this@MessagingService)) {
-                            if (ActivityCompat.checkSelfPermission(
-                                    this@MessagingService,
-                                    Manifest.permission.POST_NOTIFICATIONS
-                                ) != PackageManager.PERMISSION_GRANTED
-                            ) {
-                                return@with
-                            }
-                            notify(notifID.hashCode(), builder.build())
-                        }
-                    } else {
-                        // Fallback to the default behavior if the image couldn't be fetched
-                        showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
-                    }
-                }
-            } else {
-                // Call a helper function to handle notifications without image
-                showMessageNotificationWithoutImage(data, imageAuth, roomName, roomAvatar, sender, messagingStyle, channelID, pendingIntent, notifID)
-            }
-        }
-    }
-
-    // Helper function to handle notifications without image
-    private fun showMessageNotificationWithoutImage(
-        data: PushMessage,
-        imageAuth: String,
-        roomName: String?,
-        roomAvatar: String?,
-        sender: Person,
-        messagingStyle: NotificationCompat.MessagingStyle,
-        channelID: String,
-        pendingIntent: PendingIntent,
-        notifID: Int
-    ) {
-        val largeIcon = (sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap
-
-        Log.d(LOGTAG, "Large Icon Bitmap: $largeIcon")
-
-	// Create a PendingIntent for the dismiss action
-	val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
-	    putExtra("notification_id", notifID)
-	}
-	val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
-
-        val builder = NotificationCompat.Builder(this, channelID)
-            .setSmallIcon(R.drawable.matrix)
-            .setStyle(messagingStyle)
-            .setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
-            .setContentText(data.text) // Set the content text
-            .setWhen(data.timestamp)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setShortcutId(data.roomID)  // Associate the notification with the conversation
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setLargeIcon(largeIcon)  // Set the large icon with the sender's avatar
-	    .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
-
-        with(NotificationManagerCompat.from(this@MessagingService)) {
-            if (ActivityCompat.checkSelfPermission(
-                    this@MessagingService,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                return@with
-            }
-            notify(notifID.hashCode(), builder.build())
-        }
-    }
-
+    // For DMs
     fun createOrUpdateChatShortcut(context: Context, roomID: String, roomName: String, sender: Person) {
         val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
 
@@ -327,6 +339,39 @@ class MessagingService : FirebaseMessagingService() {
 
         shortcutManager.addDynamicShortcuts(listOf(shortcut))
     }
+
+    // For Groups
+    fun createOrUpdateGroupChatShortcut(context: Context, roomID: String, roomName: String, roomAvatar: String, imageAuth: String) {
+		val shortcutManager = context.getSystemService(ShortcutManager::class.java) ?: return
+
+		val chatIntent = Intent(context, MainActivity::class.java).apply {
+			action = Intent.ACTION_VIEW
+			data = "matrix:roomid/${roomID.substring(1)}".toUri()
+		}
+		
+		val shortcutBuilder = ShortcutInfo.Builder(context, roomID)
+			.setShortLabel(roomName)
+			.setLongLived(true)
+			.setIntent(chatIntent)
+
+		if (roomAvatar != "none") {
+			val roomUrl = buildImageUrl(roomAvatar)
+		
+			// Retrieve the icon from the room avatar
+			val iconresult =  fetchAvatar(roomUrl, imageAuth, context) { circularBitmap ->
+				if (circularBitmap != null) {
+					val icon = Icon.createWithBitmap(circularBitmap)
+					shortcutBuilder.setIcon(icon)
+					
+				} else {
+					shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
+				}
+			}
+		}
+
+		val shortcut = shortcutBuilder.build()
+		shortcutManager.addDynamicShortcuts(listOf(shortcut))
+	}
 	
 	// Helper functions
 	
@@ -412,6 +457,7 @@ class MessagingService : FirebaseMessagingService() {
         attemptFetch()
     }
 	
+	// Get get cachefile from cache
 	private fun getCacheFile(context: Context, url: String): File {
         val cacheDir = File(context.cacheDir, "avatar_cache")
         if (!cacheDir.exists()) {
@@ -420,11 +466,13 @@ class MessagingService : FirebaseMessagingService() {
         return File(cacheDir, url.hashCode().toString())
     }
 
+	// Check if url is already in cache
     private fun isAvatarInCache(context: Context, url: String): Boolean {
         val cacheFile = getCacheFile(context, url)
         return cacheFile.exists()
     }
 
+	// Get image from cache
     private fun getAvatarFromCache(context: Context, url: String): Bitmap? {
         val cacheFile = getCacheFile(context, url)
         return if (cacheFile.exists()) {
@@ -434,6 +482,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
+	// Save image to cache
     private fun saveAvatarToCache(context: Context, url: String, bitmap: Bitmap) {
         val cacheFile = getCacheFile(context, url)
         FileOutputStream(cacheFile).use { out ->
@@ -441,6 +490,7 @@ class MessagingService : FirebaseMessagingService() {
         }
     }
 
+	// Get avatar from cache (if available) or from gomuks, and store it in cache.
     private fun fetchAvatar(url: String, imageAuth: String, context: Context, callback: (Bitmap?) -> Unit) {
         val cacheKey = url.split("?")[0] // Use URL without query parameters as cache key
         if (isAvatarInCache(context, cacheKey)) {
@@ -448,6 +498,7 @@ class MessagingService : FirebaseMessagingService() {
             callback(getAvatarFromCache(context, cacheKey))
             return
         }
+		Log.d(LOGTAG, "Avatar not found in cache: $cacheKey")
 
         val glideUrl = GlideUrl(
             "$url&image_auth=$imageAuth",
