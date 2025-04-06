@@ -125,6 +125,7 @@ class MessagingService : FirebaseMessagingService() {
 	    } else {
 		    val adjustedText = data.text
 	    }
+	    Log.i(LOGTAG, "adjustedText: $adjustedText")
 			
 			// Create a PendingIntent for the dismiss action
 			val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
