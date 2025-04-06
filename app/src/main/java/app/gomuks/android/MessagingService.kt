@@ -580,13 +580,13 @@ class MessagingService : FirebaseMessagingService() {
 	    return """
 		    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
 		      <circle cx="500" cy="500" r="500" fill="$color"/>
-		      <text x="250" y="700" text-anchor="middle" fill="#fff" font-weight="normal" font-size="800"
+		      <text x="250" y="700" text-anchor="middle" fill="#000" font-weight="normal" font-size="800"
 		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 		      >[</text>
-		      <text x="500" y="650" text-anchor="middle" fill="#fff" font-weight="bold" font-size="500"
+		      <text x="500" y="650" text-anchor="middle" fill="#000" font-weight="bold" font-size="500"
 		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 		      >$text</text>
-		      <text x="750" y="700" text-anchor="middle" fill="#fff" font-weight="normal" font-size="800"
+		      <text x="750" y="700" text-anchor="middle" fill="#000" font-weight="normal" font-size="800"
 		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 		      >]</text>
 		    </svg>
