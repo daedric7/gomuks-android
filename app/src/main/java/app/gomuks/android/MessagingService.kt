@@ -119,7 +119,7 @@ class MessagingService : FirebaseMessagingService() {
             val adjustedText = when {
                 data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
                 data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> data.text
+                else -> "${data.sender.name} ${data.text}" // Name sent a photo
             }
 			
 			// Create a PendingIntent for the dismiss action
@@ -144,6 +144,8 @@ class MessagingService : FirebaseMessagingService() {
 
             val deepLinkUri = "matrix:roomid/${data.roomID.substring(1)}/e/${data.eventID.substring(1)}".toUri()
             Log.i(LOGTAG, "Deep link URI: $deepLinkUri")
+
+
 
             val pendingIntent = PendingIntent.getActivity(
                 this,
@@ -191,6 +193,7 @@ class MessagingService : FirebaseMessagingService() {
                             .setLargeIcon((sender.icon?.loadDrawable(this) as? BitmapDrawable)?.bitmap)  // Set the large icon with the sender's avatar
 							.addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent) // Add dismiss action
 
+
                         with(NotificationManagerCompat.from(this@MessagingService)) {
                             if (ActivityCompat.checkSelfPermission(
                                     this@MessagingService,
@@ -235,6 +238,7 @@ class MessagingService : FirebaseMessagingService() {
 			putExtra("notification_id", notifID)
 		}
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+
 
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
