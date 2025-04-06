@@ -115,12 +115,21 @@ class MessagingService : FirebaseMessagingService() {
 				Log.i(LOGTAG, "This is a group message")
 			}
 
-            // Adjust the text field based on reply or mention flags
-            val adjustedText = when {
-                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
-                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> "${data.sender.name} ${data.text}" // Name sent a photo
-            }
+			// Declare adjustedText outside the if-else blocks
+			val adjustedText: String
+			
+			// Adjust the text field based on reply or mention flags
+			if (!data.image.isNullOrEmpty()) {
+			    adjustedText = when {
+			        data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
+			        data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
+			        else -> "${data.sender.name} ${data.text}" // Name sent a photo
+			    }
+			} else {
+			    adjustedText = data.text
+			}
+			
+			Log.i(LOGTAG, "adjustedText: $adjustedText")
 			
 			// Create a PendingIntent for the dismiss action
 			val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
@@ -134,7 +143,8 @@ class MessagingService : FirebaseMessagingService() {
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
                 .setConversationTitle(if (isGroupMessage) roomName else null)
                 .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
-                .addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+               	.addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+
 
             val channelID = if (isGroupMessage) {
                 GROUP_NOTIFICATION_CHANNEL_ID
@@ -170,7 +180,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
-                val imageUrl = buildImageUrl(data.image)
+		val imageUrl = buildImageUrl(data.image)
                 fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
                     if (bitmap != null) {
                         Log.i(LOGTAG, "Using image in notification") // Log image usage
@@ -239,12 +249,15 @@ class MessagingService : FirebaseMessagingService() {
 		}
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
-
+			val isGroupMessage = roomName != data.sender.name
+			val msg2send = if (isGroupMessage) data.text else ""
+	    		Log.i(LOGTAG, "Sending: $msg2send")
+	    
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
 				.setStyle(messagingStyle)
 				.setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
-				.setContentText(data.text) // Set the content text
+				.setContentText(if (isGroupMessage) data.text else "") // Empty to prevent duplication of sender name prefixed in each message, if not a group.
 				.setWhen(data.timestamp)
 				.setAutoCancel(true)
 				.setContentIntent(pendingIntent)
@@ -279,7 +292,7 @@ class MessagingService : FirebaseMessagingService() {
             } else {
                 "$serverURL/${data.avatar}"
             }
-            "$baseURL?encrypted=false&image_auth=$imageAuth"
+            "$baseURL&image_auth=$imageAuth"
         } else {
             null
         }
