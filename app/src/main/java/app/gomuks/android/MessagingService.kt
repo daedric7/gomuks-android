@@ -116,11 +116,15 @@ class MessagingService : FirebaseMessagingService() {
 			}
 
             // Adjust the text field based on reply or mention flags
-            val adjustedText = when {
-                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
-                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> "${data.sender.name} ${data.text}" // Name sent a photo
-            }
+	    if (!data.image.isNullOrEmpty()) {
+	            val adjustedText = when {
+	                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
+	                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
+	                else -> "${data.sender.name} ${data.text}" // Name sent a photo
+	            }
+	    } else {
+		    val adjustedText = data.text
+	    }
 			
 			// Create a PendingIntent for the dismiss action
 			val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
@@ -134,11 +138,8 @@ class MessagingService : FirebaseMessagingService() {
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
                 .setConversationTitle(if (isGroupMessage) roomName else null)
                 .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
-		if (!data.image.isNullOrEmpty()) {
-                	.addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
-		} else {
-			.addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender)) // Use adjustedText
-		}
+               	.addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+
 
             val channelID = if (isGroupMessage) {
                 GROUP_NOTIFICATION_CHANNEL_ID
