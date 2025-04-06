@@ -292,7 +292,7 @@ class MessagingService : FirebaseMessagingService() {
             } else {
                 "$serverURL/${data.avatar}"
             }
-            "$baseURL?encrypted=false&image_auth=$imageAuth"
+            "$baseURL&image_auth=$imageAuth"
         } else {
             null
         }
