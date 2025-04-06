@@ -47,6 +47,10 @@ import android.app.NotificationChannel
 import android.os.IBinder
 import android.graphics.drawable.Icon
 
+// SVG generator
+import com.caverock.androidsvg.SVG
+import android.graphics.drawable.PictureDrawable
+
 class MessagingService : FirebaseMessagingService() {
     companion object {
         private const val LOGTAG = "Gomuks/MessagingService"
@@ -349,7 +353,14 @@ class MessagingService : FirebaseMessagingService() {
             shortcutBuilder.setIcon(icon)
         } else {
             Log.d(LOGTAG, "Setting default icon for shortcut")
-            shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
+	    val shortcutName = "Chat" // Replace this with your actual shortcut name
+	    val firstLetter = roomName.first().toString()
+	    val color = "#ffffff" // Replace this with your desired color
+	    val svgXml = generateSVGXml(color, firstLetter)
+            val iconBitmap = createBitmapFromSVG(svgXml)
+	    val icon = Icon.createWithBitmap(iconBitmap)
+            //shortcutBuilder.setIcon(Icon.createWithResource(context, R.drawable.ic_chat))
+	    shortcutBuilder.setIcon(icon)
         }
 
         val shortcut = shortcutBuilder.build()
@@ -550,4 +561,36 @@ class MessagingService : FirebaseMessagingService() {
                 }
             })
     }
+
+    fun createBitmapFromSVG(svgXml: String): Bitmap {
+	    val svg = SVG.getFromString(svgXml)
+	    val picture = svg.renderToPicture()
+	    val drawable = PictureDrawable(picture)
+	    
+	    val bitmap = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
+	    val canvas = Canvas(bitmap)
+	    drawable.setBounds(0, 0, canvas.width, canvas.height)
+	    drawable.draw(canvas)
+	    
+	    return bitmap
+	}
+
+    // Function to generate the SVG XML string with the given color and text
+	fun generateSVGXml(color: String, text: String): String {
+	    return """
+		    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+		      <circle cx="500" cy="500" r="500" fill="$color"/>
+		      <text x="250" y="750" text-anchor="middle" fill="#000" font-weight="normal" font-size="800"
+		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+		      >[</text>
+		      <text x="500" y="650" text-anchor="middle" fill="#000" font-weight="bold" font-size="500"
+		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+		      >$text</text>
+		      <text x="750" y="750" text-anchor="middle" fill="#000" font-weight="normal" font-size="800"
+		        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+		      >]</text>
+		    </svg>
+	    """.trimIndent()
+	}
+
 }
