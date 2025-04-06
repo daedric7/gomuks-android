@@ -115,17 +115,21 @@ class MessagingService : FirebaseMessagingService() {
 				Log.i(LOGTAG, "This is a group message")
 			}
 
-            // Adjust the text field based on reply or mention flags
-	    if (!data.image.isNullOrEmpty()) {
-	            val adjustedText = when {
-	                data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
-	                data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-	                else -> "${data.sender.name} ${data.text}" // Name sent a photo
-	            }
-	    } else {
-		    val adjustedText = data.text
-	    }
-	    Log.i(LOGTAG, "adjustedText: $adjustedText")
+			// Declare adjustedText outside the if-else blocks
+			val adjustedText: String
+			
+			// Adjust the text field based on reply or mention flags
+			if (!data.image.isNullOrEmpty()) {
+			    adjustedText = when {
+			        data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
+			        data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
+			        else -> "${data.sender.name} ${data.text}" // Name sent a photo
+			    }
+			} else {
+			    adjustedText = data.text
+			}
+			
+			Log.i(LOGTAG, "adjustedText: $adjustedText")
 			
 			// Create a PendingIntent for the dismiss action
 			val dismissIntent = Intent(this, NotificationDismissReceiver::class.java).apply {
