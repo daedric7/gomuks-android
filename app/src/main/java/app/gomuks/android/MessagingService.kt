@@ -49,6 +49,7 @@ import android.graphics.drawable.Icon
 
 // SVG generator
 import com.caverock.androidsvg.SVG
+import android.graphics.drawable.PictureDrawable
 
 class MessagingService : FirebaseMessagingService() {
     companion object {
@@ -352,6 +353,9 @@ class MessagingService : FirebaseMessagingService() {
             shortcutBuilder.setIcon(icon)
         } else {
             Log.d(LOGTAG, "Setting default icon for shortcut")
+	    val shortcutName = "Chat" // Replace this with your actual shortcut name
+	    val firstLetter = shortcutName.first().toString()
+	    val color = "#ff0000" // Replace this with your desired color
 	    val svgXml = generateSVGXml(color, firstLetter)
             val iconBitmap = createBitmapFromSVG(svgXml)
 	    val icon = Icon.createWithBitmap(iconBitmap)
