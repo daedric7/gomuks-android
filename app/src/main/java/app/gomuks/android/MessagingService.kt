@@ -119,7 +119,7 @@ class MessagingService : FirebaseMessagingService() {
             val adjustedText = when {
                 data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
                 data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> "${data.sender.name} ${data.text}" // Name sent a photo
+                else -> "${data.sender.name} - ${data.text}" // Name sent a photo
             }
 			
 			// Create a PendingIntent for the dismiss action
