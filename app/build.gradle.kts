@@ -99,7 +99,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3") // Add OkHttp dependency
 
     // SVG Fallback
-    implementation("com.caverock:androidsvg")
+    implementation("com.caverock:androidsvg-aar:1.4")
 }
 
 
