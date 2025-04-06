@@ -240,6 +240,8 @@ class MessagingService : FirebaseMessagingService() {
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
 			val isGroupMessage = roomName != data.sender.name
+			val msg2send = if (isGroupMessage) data.text else ""
+	    		Log.i(LOGTAG, "Sending: $msg2send")
 	    
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
