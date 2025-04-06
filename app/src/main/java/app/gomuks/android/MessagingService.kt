@@ -239,12 +239,13 @@ class MessagingService : FirebaseMessagingService() {
 		}
 		val dismissPendingIntent = PendingIntent.getBroadcast(this, notifID, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
 
-
+			val isGroupMessage = roomName != data.sender.name
+	    
 			val builder = NotificationCompat.Builder(this, channelID)
 				.setSmallIcon(R.drawable.matrix)
 				.setStyle(messagingStyle)
 				.setContentTitle(if (roomName != null) roomName else sender.name) // Set the content title
-				.setContentText(data.text) // Set the content text
+				.setContentText(if (isGroupMessage) data.text else "") // Empty to prevent duplication of sender name prefixed in each message, if not a group.
 				.setWhen(data.timestamp)
 				.setAutoCancel(true)
 				.setContentIntent(pendingIntent)
