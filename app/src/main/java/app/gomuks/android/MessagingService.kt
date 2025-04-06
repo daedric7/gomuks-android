@@ -119,7 +119,7 @@ class MessagingService : FirebaseMessagingService() {
             val adjustedText = when {
                 data.reply -> "${data.sender.name} replied to you: ${data.text}" // Adjusted text for reply
                 data.mention -> "${data.sender.name} mentioned you: ${data.text}" // Adjusted text for mention
-                else -> "${data.sender.name} - ${data.text}" // Name sent a photo
+                else -> "${data.sender.name} ${data.text}" // Name sent a photo
             }
 			
 			// Create a PendingIntent for the dismiss action
@@ -134,7 +134,11 @@ class MessagingService : FirebaseMessagingService() {
             } ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Self").build()))
                 .setConversationTitle(if (isGroupMessage) roomName else null)
                 .setGroupConversation(isGroupMessage) // Indicate it's a group conversation if applicable
-                .addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+		if (!data.image.isNullOrEmpty()) {
+                	.addMessage(NotificationCompat.MessagingStyle.Message(adjustedText, data.timestamp, sender)) // Use adjustedText
+		} else {
+			.addMessage(NotificationCompat.MessagingStyle.Message(data.text, data.timestamp, sender)) // Use adjustedText
+		}
 
             val channelID = if (isGroupMessage) {
                 GROUP_NOTIFICATION_CHANNEL_ID
@@ -170,7 +174,7 @@ class MessagingService : FirebaseMessagingService() {
 
             // Fetch the image if available
             if (!data.image.isNullOrEmpty()) {
-                val imageUrl = buildImageUrl(data.image)
+		val imageUrl = buildImageUrl(data.image)
                 fetchImageWithRetry(imageUrl, imageAuth) { bitmap ->
                     if (bitmap != null) {
                         Log.i(LOGTAG, "Using image in notification") // Log image usage
